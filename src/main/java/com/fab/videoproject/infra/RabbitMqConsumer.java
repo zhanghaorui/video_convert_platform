@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class RabbitMqConsumer {
 
-    @RabbitListener(queues = "video.task.queue")
+    @RabbitListener(queues = "${rabbitmq.video-task-queue}")
     public void onMessage(String message) {
         // TODO handle incoming MQ messages
     }
