@@ -26,10 +26,6 @@ public class BusinessException extends RuntimeException {
         return code;
     }
 
-    public static BusinessException success(String message) {
-        return new BusinessException(DEFAULT_SUCCESS_CODE, message);
-    }
-
     public static BusinessException error(String message) {
         return new BusinessException(DEFAULT_ERROR_CODE, message);
     }
