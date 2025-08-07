@@ -5,12 +5,12 @@ import com.fab.videoproject.service.IVideoService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 public class VideoController {
 
-    @Resource
+    @Autowired
     private IVideoService videoService;
 
     @GetMapping("/ping")
