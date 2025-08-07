@@ -1,12 +1,8 @@
 package com.fab.videoproject.service;
 
 /**
- * Interface for video operations.
+ * Service interface for video-related operations.
  */
 public interface IVideoService {
-    /**
-     * Simple health check.
-     * @return placeholder response
-     */
-    String ping();
+    // future video processing methods will be defined here
 }
