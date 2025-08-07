@@ -11,7 +11,7 @@
 ## 2. 目录结构与分层说明
 
 ```text
-/com/yourcompany/videoproject
+/com/fab/videoproject
     /controller     # API与入口
     /service        # 业务服务编排
     /domain         # 核心领域对象
