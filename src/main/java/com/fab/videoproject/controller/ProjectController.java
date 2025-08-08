@@ -36,6 +36,9 @@ public class ProjectController {
     @PutMapping("/{id}")
     public ApiResponse<ProjectConfig> update(@PathVariable Long id,
                                              @RequestBody ProjectConfig config) {
+        if (config.getId() != null && !config.getId().equals(id)) {
+            return ApiResponse.error("ID in path and body do not match", 400);
+        }
         config.setId(id);
         return ApiResponse.success(projectService.update(config));
     }
