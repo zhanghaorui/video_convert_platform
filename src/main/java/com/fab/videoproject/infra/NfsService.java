@@ -36,6 +36,18 @@ public class NfsService {
     }
 
     /**
+     * Copy an existing file into the archive.
+     *
+     * @param source existing file path
+     * @param target target path within NFS
+     * @throws IOException if copy fails
+     */
+    public void copyFile(Path source, Path target) throws IOException {
+        Files.createDirectories(target.getParent());
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /**
      * Save a chunk to temporary directory.
      */
     public void saveChunk(MultipartFile file, Path dir, int chunk) throws IOException {

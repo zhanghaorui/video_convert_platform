@@ -1,6 +1,7 @@
 package com.fab.videoproject.service;
 
 import com.fab.videoproject.domain.VideoUploadTask;
+import com.fab.videoproject.infra.MqVideoMessage;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -35,4 +36,11 @@ public interface IVideoService {
     void uploadChunk(MultipartFile file, Integer chunk, Integer chunks,
                      String filename, String projectNo, String patientCode,
                      String tpStage, String uuid);
+
+    /**
+     * Handle tasks pushed via MQ.
+     *
+     * @param message MQ message payload
+     */
+    void processMqMessage(MqVideoMessage message);
 }
