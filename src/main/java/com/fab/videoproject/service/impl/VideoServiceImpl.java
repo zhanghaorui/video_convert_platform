@@ -220,7 +220,10 @@ public class VideoServiceImpl implements IVideoService {
         for (int i = 0; i < qualities.length; i++) {
             String quality = qualities[i];
             int w = scales[i][0];
-            int h = scales[i][1];
+        for (VideoQuality vq : VideoQuality.values()) {
+            String quality = vq.getName();
+            int w = vq.getWidth();
+            int h = vq.getHeight();
             Path sliceDir = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
                     task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
                     task.getVersionNo(), task.getUuid(), quality);
