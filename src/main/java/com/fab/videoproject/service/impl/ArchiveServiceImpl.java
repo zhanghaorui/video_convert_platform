@@ -7,6 +7,8 @@ import com.fab.videoproject.mapper.VideoArchiveFileMapper;
 import com.fab.videoproject.service.IArchiveService;
 import com.fab.videoproject.util.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,6 +21,7 @@ public class ArchiveServiceImpl implements IArchiveService {
     private VideoArchiveFileMapper archiveFileMapper;
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = RuntimeException.class)
     public VideoArchiveFile saveOriginal(Long taskId, String fileName, String filePath,
                                          long fileSize, String fileMd5) {
         VideoArchiveFile archive = new VideoArchiveFile();

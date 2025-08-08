@@ -13,6 +13,7 @@ import com.fab.videoproject.infra.NfsService;
 import com.fab.videoproject.util.ArchivePathUtil;
 import com.fab.videoproject.util.DigestUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,6 +38,7 @@ public class VideoServiceImpl implements IVideoService {
     private NfsService nfsService;
 
     @Override
+    @Transactional(rollbackFor = RuntimeException.class)
     public VideoUploadTask upload(MultipartFile file, String projectNo,
                                   String patientCode, String tpStage) {
         ProjectConfig config = projectConfigMapper.selectOne(
@@ -66,6 +68,7 @@ public class VideoServiceImpl implements IVideoService {
     }
 
     @Override
+    @Transactional(rollbackFor = RuntimeException.class)
     public void uploadChunk(MultipartFile file, Integer chunk, Integer chunks,
                             String filename, String projectNo, String patientCode,
                             String tpStage, String uuid) {
