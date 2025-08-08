@@ -245,7 +245,12 @@ public class VideoServiceImpl implements IVideoService {
             Files.deleteIfExists(tmp);
         }
         callbackService.notify(task);
-        taskLogService.info(task.getId(), "callback finished");
+        try {
+            callbackService.notify(task);
+            taskLogService.info(task.getId(), "callback finished");
+        } catch (Exception e) {
+            taskLogService.error(task.getId(), "callback failed: " + e.getMessage(), e);
+        }
         task.setStatus(TaskStatus.FINISHED.name());
         uploadTaskMapper.updateById(task);
         taskLogService.info(task.getId(), "task finished");
