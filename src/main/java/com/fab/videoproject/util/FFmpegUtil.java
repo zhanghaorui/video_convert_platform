@@ -24,7 +24,12 @@ public class FFmpegUtil {
         pb.redirectErrorStream(true);
         Process p = pb.start();
         try (InputStream in = p.getInputStream()) {
-            in.transferTo(System.out);
+        try (InputStream in = p.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                LOGGER.info(line);
+            }
         }
         int code = p.waitFor();
         if (code != 0) {
