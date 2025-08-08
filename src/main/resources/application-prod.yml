@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://prod-db:3306/video_prod?useSSL=false&serverTimezone=Asia/Shanghai
+    username: video
+    password: secure_password
+  rabbitmq:
+    host: prod-rabbitmq
+    port: 5672
+    username: video
+    password: secure_password
+
+rabbitmq:
+  video-task-queue: video.task.queue
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
