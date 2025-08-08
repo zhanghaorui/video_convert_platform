@@ -96,12 +96,6 @@ public class NfsService {
 
             @Override
             public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
-                Files.delete(file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
                 Files.delete(d);
                 return FileVisitResult.CONTINUE;
             }
