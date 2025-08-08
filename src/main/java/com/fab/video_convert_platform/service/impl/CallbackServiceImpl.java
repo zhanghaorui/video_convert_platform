@@ -39,7 +39,12 @@ public class CallbackServiceImpl implements ICallbackService {
         body.put("projectNo", task.getProjectNo());
         body.put("status", task.getStatus());
         restTemplate.postForEntity(config.getCallbackUrl(), body, Void.class);
-        taskLogService.info(task.getId(), "callback to business system success");
+        try {
+            restTemplate.postForEntity(config.getCallbackUrl(), body, Void.class);
+            taskLogService.info(task.getId(), "callback to business system success");
+        } catch (RestClientException e) {
+            taskLogService.info(task.getId(), "callback to business system failed: " + e.getMessage());
+        }
     }
 }
 
