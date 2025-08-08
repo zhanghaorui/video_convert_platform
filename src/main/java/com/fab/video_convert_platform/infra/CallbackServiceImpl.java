@@ -1,12 +1,12 @@
-package com.fab.video_convert_platform.service.impl;
+package com.fab.video_convert_platform.infra;
 
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.service.ICallbackService;
 import com.fab.video_convert_platform.service.IProjectService;
 import com.fab.video_convert_platform.service.ITaskLogService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -15,17 +15,20 @@ import java.util.Map;
 /**
  * Dummy callback service that simply records a log entry.
  */
-@Service
+@Component
 public class CallbackServiceImpl implements ICallbackService {
 
-    @Autowired
-    private ITaskLogService taskLogService;
+    private final ITaskLogService taskLogService;
+    private final RestTemplate restTemplate;
+    private final IProjectService projectService;
 
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Autowired
-    private IProjectService projectService;
+    public CallbackServiceImpl(ITaskLogService taskLogService,
+                               RestTemplate restTemplate,
+                               IProjectService projectService) {
+        this.taskLogService = taskLogService;
+        this.restTemplate = restTemplate;
+        this.projectService = projectService;
+    }
 
     @Override
     public void notify(VideoUploadTask task) {
@@ -38,12 +41,11 @@ public class CallbackServiceImpl implements ICallbackService {
         body.put("taskId", task.getId());
         body.put("projectNo", task.getProjectNo());
         body.put("status", task.getStatus());
-        restTemplate.postForEntity(config.getCallbackUrl(), body, Void.class);
         try {
             restTemplate.postForEntity(config.getCallbackUrl(), body, Void.class);
             taskLogService.info(task.getId(), "callback to business system success");
         } catch (RestClientException e) {
-            taskLogService.info(task.getId(), "callback to business system failed: " + e.getMessage());
+            taskLogService.error(task.getId(), "callback to business system failed: " + e.getMessage());
         }
     }
 }

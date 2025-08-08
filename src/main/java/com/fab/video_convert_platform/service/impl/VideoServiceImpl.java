@@ -2,12 +2,12 @@ package com.fab.video_convert_platform.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fab.video_convert_platform.common.BusinessException;
+import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
-import com.fab.video_convert_platform.domain.enums.TaskStatus;
-import com.fab.video_convert_platform.domain.enums.VideoQuality;
-import com.fab.video_convert_platform.infra.MqVideoMessage;
+import com.fab.video_convert_platform.service.dto.MqVideoMessage;
+import com.fab.video_convert_platform.domain.service.VideoTaskDomainService;
 import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
 import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import com.fab.video_convert_platform.service.IArchiveService;
@@ -17,18 +17,14 @@ import com.fab.video_convert_platform.service.ICallbackService;
 import com.fab.video_convert_platform.infra.NfsService;
 import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
-import com.fab.video_convert_platform.util.FFmpegUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -37,18 +33,29 @@ import java.util.UUID;
 @Service
 public class VideoServiceImpl implements IVideoService {
 
-    @Autowired
-    private ProjectConfigMapper projectConfigMapper;
-    @Autowired
-    private VideoUploadTaskMapper uploadTaskMapper;
-    @Autowired
-    private IArchiveService archiveService;
-    @Autowired
-    private NfsService nfsService;
-    @Autowired
-    private ITaskLogService taskLogService;
-    @Autowired
-    private ICallbackService callbackService;
+    private final ProjectConfigMapper projectConfigMapper;
+    private final VideoUploadTaskMapper uploadTaskMapper;
+    private final IArchiveService archiveService;
+    private final NfsService nfsService;
+    private final ITaskLogService taskLogService;
+    private final ICallbackService callbackService;
+    private final VideoTaskDomainService videoTaskDomainService;
+
+    public VideoServiceImpl(ProjectConfigMapper projectConfigMapper,
+                            VideoUploadTaskMapper uploadTaskMapper,
+                            IArchiveService archiveService,
+                            NfsService nfsService,
+                            ITaskLogService taskLogService,
+                            ICallbackService callbackService,
+                            VideoTaskDomainService videoTaskDomainService) {
+        this.projectConfigMapper = projectConfigMapper;
+        this.uploadTaskMapper = uploadTaskMapper;
+        this.archiveService = archiveService;
+        this.nfsService = nfsService;
+        this.taskLogService = taskLogService;
+        this.callbackService = callbackService;
+        this.videoTaskDomainService = videoTaskDomainService;
+    }
 
     @Override
     @Transactional(rollbackFor = RuntimeException.class)
@@ -57,7 +64,7 @@ public class VideoServiceImpl implements IVideoService {
         ProjectConfig config = projectConfigMapper.selectOne(
                 new QueryWrapper<ProjectConfig>().eq("project_no", projectNo).last("limit 1"));
         if (config == null) {
-            throw BusinessException.error("Project config not found");
+            throw BusinessException.of(ErrorCode.PROJECT_NOT_FOUND);
         }
 
         String uuid = UUID.randomUUID().toString().replace("-", "");
@@ -76,19 +83,23 @@ public class VideoServiceImpl implements IVideoService {
             archiveService.saveOriginal(task.getId(), fileName, path.toString(),
                     file.getSize(), md5);
             taskLogService.info(task.getId(), "original file archived");
-            processSlices(config, task);
+            videoTaskDomainService.processSlices(config, task);
             return uploadTaskMapper.selectById(task.getId());
         } catch (IOException e) {
             if (task != null) {
                 taskLogService.error(task.getId(), "store file failed: " + e.getMessage());
+                task.markError(e.getMessage());
+                uploadTaskMapper.updateById(task);
             }
-            throw BusinessException.error("Failed to store file: " + e.getMessage());
+            throw BusinessException.of(ErrorCode.STORE_FILE_FAILED, "Failed to store file: " + e.getMessage());
         } catch (InterruptedException e) {
             if (task != null) {
                 taskLogService.error(task.getId(), "ffmpeg interrupted");
+                task.markError("ffmpeg interrupted");
+                uploadTaskMapper.updateById(task);
             }
             Thread.currentThread().interrupt();
-            throw BusinessException.error("FFmpeg interrupted");
+            throw BusinessException.of(ErrorCode.FFMPEG_INTERRUPTED);
         }
     }
 
@@ -100,7 +111,7 @@ public class VideoServiceImpl implements IVideoService {
         ProjectConfig config = projectConfigMapper.selectOne(
                 new QueryWrapper<ProjectConfig>().eq("project_no", projectNo).last("limit 1"));
         if (config == null) {
-            throw BusinessException.error("Project config not found");
+            throw BusinessException.of(ErrorCode.PROJECT_NOT_FOUND);
         }
 
         int versionNo = VideoConstants.DEFAULT_VERSION_NO;
@@ -122,20 +133,24 @@ public class VideoServiceImpl implements IVideoService {
                 archiveService.saveOriginal(task.getId(), filename, target.toString(),
                         size, md5);
                 taskLogService.info(task.getId(), "chunks merged and archived");
-                processSlices(config, task);
+                videoTaskDomainService.processSlices(config, task);
                 nfsService.deleteRecursively(chunkDir);
             }
         } catch (IOException e) {
             if (task != null) {
                 taskLogService.error(task.getId(), "chunk process failed: " + e.getMessage());
+                task.markError(e.getMessage());
+                uploadTaskMapper.updateById(task);
             }
-            throw BusinessException.error("Failed to store chunk: " + e.getMessage());
+            throw BusinessException.of(ErrorCode.STORE_FILE_FAILED, "Failed to store chunk: " + e.getMessage());
         } catch (InterruptedException e) {
             if (task != null) {
                 taskLogService.error(task.getId(), "ffmpeg interrupted");
+                task.markError("ffmpeg interrupted");
+                uploadTaskMapper.updateById(task);
             }
             Thread.currentThread().interrupt();
-            throw BusinessException.error("FFmpeg interrupted");
+            throw BusinessException.of(ErrorCode.FFMPEG_INTERRUPTED);
         }
     }
 
@@ -145,20 +160,20 @@ public class VideoServiceImpl implements IVideoService {
         ProjectConfig config = projectConfigMapper.selectOne(
                 new QueryWrapper<ProjectConfig>().eq("project_no", message.getProjectNo()).last("limit 1"));
         if (config == null) {
-            throw BusinessException.error("Project config not found");
+            throw BusinessException.of(ErrorCode.PROJECT_NOT_FOUND);
         }
         Path source = Paths.get(message.getFilePath());
         if (!Files.exists(source)) {
-            throw BusinessException.error("Source file not found");
+            throw BusinessException.of(ErrorCode.SOURCE_FILE_NOT_FOUND);
         }
         VideoUploadTask task = null;
         try {
             if (message.getFileMd5() == null) {
-                throw BusinessException.error("MD5 is required for MQ message");
+                throw BusinessException.of(ErrorCode.MD5_REQUIRED);
             }
             String md5 = DigestUtil.md5(source);
             if (!message.getFileMd5().equalsIgnoreCase(md5)) {
-                throw BusinessException.error("MD5 mismatch");
+                throw BusinessException.of(ErrorCode.MD5_MISMATCH);
             }
             String fileName = source.getFileName().toString();
             int versionNo = VideoConstants.DEFAULT_VERSION_NO;
@@ -174,84 +189,23 @@ public class VideoServiceImpl implements IVideoService {
             uploadTaskMapper.insert(task);
             archiveService.saveOriginal(task.getId(), fileName, target.toString(), size, md5);
             taskLogService.info(task.getId(), "mq file archived");
-            processSlices(config, task);
+            videoTaskDomainService.processSlices(config, task);
         } catch (IOException e) {
             if (task != null) {
                 taskLogService.error(task.getId(), "mq process failed: " + e.getMessage());
+                task.markError(e.getMessage());
+                uploadTaskMapper.updateById(task);
             }
-            throw BusinessException.error("Failed to process MQ file: " + e.getMessage());
+            throw BusinessException.of(ErrorCode.MQ_PROCESS_FAILED, "Failed to process MQ file: " + e.getMessage());
         } catch (InterruptedException e) {
             if (task != null) {
                 taskLogService.error(task.getId(), "ffmpeg interrupted");
+                task.markError("ffmpeg interrupted");
+                uploadTaskMapper.updateById(task);
             }
             Thread.currentThread().interrupt();
-            throw BusinessException.error("FFmpeg interrupted");
+            throw BusinessException.of(ErrorCode.FFMPEG_INTERRUPTED);
         }
     }
 
-    private void processSlices(ProjectConfig config, VideoUploadTask task)
-            throws IOException, InterruptedException {
-        taskLogService.info(task.getId(), "start slicing");
-        Path input = Paths.get(task.getMainFilePath());
-        taskLogService.info(task.getId(), "validate video");
-        FFmpegUtil.validate(input);
-        List<Path> temps = new ArrayList<>();
-        String name = input.getFileName().toString().toLowerCase();
-        if (name.endsWith(".avi")) {
-            taskLogService.info(task.getId(), "convert avi to mp4");
-            Path mp4 = input.resolveSibling("converted.mp4");
-            FFmpegUtil.aviToMp4(input, mp4);
-            temps.add(mp4);
-            input = mp4;
-        }
-        int[] res = FFmpegUtil.getResolution(input);
-        if (res == null || res.length < 2) {
-            taskLogService.info(task.getId(), "failed to get video resolution");
-            throw new BusinessException("Failed to parse video resolution for input: " + input);
-        }
-        int origW = res[0];
-        int origH = res[1];
-        if (origW > 1920 || origH > 1080) {
-            taskLogService.info(task.getId(), "downscale to 1080p");
-            Path scaled = input.resolveSibling("tmp_1080p.mp4");
-            FFmpegUtil.transcode(input, scaled, 1920, 1080);
-            temps.add(scaled);
-            input = scaled;
-            origW = 1920;
-            origH = 1080;
-        }
-        for (VideoQuality vq : VideoQuality.values()) {
-            String quality = vq.getName();
-            int w = vq.getWidth() > 0 ? vq.getWidth() : origW;
-            int h = vq.getHeight() > 0 ? vq.getHeight() : origH;
-            Path sliceDir = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
-                    task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
-                    task.getVersionNo(), task.getUuid(), quality);
-            Path transcoded = sliceDir.resolve("tmp_" + quality + ".mp4");
-            taskLogService.info(task.getId(), "transcoding " + quality);
-            FFmpegUtil.transcode(input, transcoded, w, h);
-            Path m3u8 = FFmpegUtil.sliceToM3u8(transcoded, sliceDir);
-            Files.deleteIfExists(transcoded);
-            long size = Files.size(m3u8);
-            String md5 = DigestUtil.md5(m3u8);
-            String playUrl = ArchivePathUtil.buildPlayUrl(task.getProjectNo(),
-                    task.getPatientCode(), task.getTpStage(), task.getVersionNo(),
-                    task.getUuid(), quality);
-            archiveService.saveM3u8(task.getId(), quality, VideoConstants.M3U8_NAME,
-                    m3u8.toString(), playUrl, size, md5);
-            taskLogService.info(task.getId(), "slice " + quality + " ready");
-        }
-        for (Path tmp : temps) {
-            Files.deleteIfExists(tmp);
-        }
-        try {
-            callbackService.notify(task);
-            taskLogService.info(task.getId(), "callback finished");
-        } catch (Exception e) {
-            taskLogService.error(task.getId(), "callback failed: " + e.getMessage());
-        }
-        task.setStatus(TaskStatus.FINISHED.name());
-        uploadTaskMapper.updateById(task);
-        taskLogService.info(task.getId(), "task finished");
-    }
 }

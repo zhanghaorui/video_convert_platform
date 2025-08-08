@@ -1,28 +1,28 @@
 package com.fab.video_convert_platform.infra;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fab.video_convert_platform.infra.MqVideoMessage;
+import com.fab.video_convert_platform.service.dto.MqVideoMessage;
 import com.fab.video_convert_platform.service.IVideoService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Placeholder MQ consumer.
  */
+@Slf4j
 @Component
 @Profile("!test")
 public class RabbitMqConsumer {
 
-    private static final Logger log = LoggerFactory.getLogger(RabbitMqConsumer.class);
+    private final ObjectMapper objectMapper;
+    private final IVideoService videoService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private IVideoService videoService;
+    public RabbitMqConsumer(ObjectMapper objectMapper, IVideoService videoService) {
+        this.objectMapper = objectMapper;
+        this.videoService = videoService;
+    }
 
     @RabbitListener(queues = "${rabbitmq.video-task-queue}")
     public void onMessage(String message) {
@@ -34,4 +34,3 @@ public class RabbitMqConsumer {
         }
     }
 }
-

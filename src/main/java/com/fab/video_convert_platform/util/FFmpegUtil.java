@@ -1,18 +1,24 @@
 package com.fab.video_convert_platform.util;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.nio.charset.StandardCharsets;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Helper utilities for invoking FFmpeg command line.
  */
+@Slf4j
 public class FFmpegUtil {
+
     private FFmpegUtil() {
     }
 
@@ -23,12 +29,11 @@ public class FFmpegUtil {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
         Process p = pb.start();
-        try (InputStream in = p.getInputStream()) {
-        try (InputStream in = p.getInputStream();
-             BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                LOGGER.info(line);
+                log.info(line);
             }
         }
         int code = p.waitFor();
@@ -65,6 +70,7 @@ public class FFmpegUtil {
         cmd.add("-c:v");
         cmd.add("libx264");
         cmd.add("-c:a");
+        cmd.add("aac");
         cmd.add(output.toString());
         runCommand(cmd);
     }
@@ -88,8 +94,8 @@ public class FFmpegUtil {
         pb.redirectErrorStream(true);
         Process p = pb.start();
         String result;
-        try (InputStream in = p.getInputStream()) {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             InputStream in = p.getInputStream()) {
             byte[] buf = new byte[1024];
             int len;
             while ((len = in.read(buf)) != -1) {
@@ -104,10 +110,6 @@ public class FFmpegUtil {
         String[] parts = result.split("x");
         if (parts.length != 2) {
             throw new IOException("Unexpected ffprobe output format: '" + result + "'");
-        }
-        int w = Integer.parseInt(parts[0]);
-        if (parts.length != 2) {
-            throw new IOException("Malformed ffprobe output: expected 'widthxheight', got '" + result + "'");
         }
         int w, h;
         try {

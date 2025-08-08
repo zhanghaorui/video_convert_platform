@@ -1,22 +1,21 @@
 package com.fab.video_convert_platform.service.impl;
 
 import com.fab.video_convert_platform.domain.ProjectConfig;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
 import com.fab.video_convert_platform.service.IProjectService;
 import org.springframework.stereotype.Service;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Implementation of project service.
  */
 @Service
+@RequiredArgsConstructor
 public class ProjectServiceImpl implements IProjectService {
 
-    @Autowired
-    private ProjectConfigMapper projectConfigMapper;
+    private final ProjectConfigMapper projectConfigMapper;
 
     @Override
     public ProjectConfig create(ProjectConfig config) {
@@ -36,8 +35,8 @@ public class ProjectServiceImpl implements IProjectService {
 
     @Override
     public ProjectConfig getByProjectNo(String projectNo) {
-        return projectConfigMapper.selectOne(new QueryWrapper<ProjectConfig>()
-                .eq("project_no", projectNo)
+        return projectConfigMapper.selectOne(new LambdaQueryWrapper<ProjectConfig>()
+                .eq(ProjectConfig::getProjectNo, projectNo)
                 .last("limit 1"));
     }
 

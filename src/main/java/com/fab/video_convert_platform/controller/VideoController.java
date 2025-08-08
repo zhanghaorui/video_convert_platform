@@ -3,7 +3,7 @@ package com.fab.video_convert_platform.controller;
 import com.fab.video_convert_platform.common.ApiResponse;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.service.IVideoService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,10 +17,10 @@ import javax.servlet.http.HttpServletResponse;
  */
 @RestController
 @RequestMapping("/videos")
+@RequiredArgsConstructor
 public class VideoController {
 
-    @Autowired
-    private IVideoService videoService;
+    private final IVideoService videoService;
 
     /**
      * Upload complete video and archive original file.

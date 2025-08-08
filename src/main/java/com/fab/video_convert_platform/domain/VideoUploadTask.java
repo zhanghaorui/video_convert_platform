@@ -77,4 +77,17 @@ public class VideoUploadTask extends BaseEntity {
         task.setUpdateTime(now);
         return task;
     }
+
+    /** Mark task as finished. */
+    public void markFinished() {
+        this.status = TaskStatus.FINISHED.name();
+        this.updateTime = DateUtil.now();
+    }
+
+    /** Mark task as failed with error message. */
+    public void markError(String error) {
+        this.status = TaskStatus.FAILED.name();
+        this.errorMsg = error;
+        this.updateTime = DateUtil.now();
+    }
 }
