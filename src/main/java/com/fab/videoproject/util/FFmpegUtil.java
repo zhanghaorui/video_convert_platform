@@ -104,7 +104,16 @@ public class FFmpegUtil {
         }
         String[] parts = result.split("x");
         int w = Integer.parseInt(parts[0]);
-        int h = Integer.parseInt(parts[1]);
+        if (parts.length != 2) {
+            throw new IOException("Malformed ffprobe output: expected 'widthxheight', got '" + result + "'");
+        }
+        int w, h;
+        try {
+            w = Integer.parseInt(parts[0].trim());
+            h = Integer.parseInt(parts[1].trim());
+        } catch (NumberFormatException e) {
+            throw new IOException("Malformed ffprobe output: non-numeric resolution '" + result + "'", e);
+        }
         return new int[]{w, h};
     }
 
