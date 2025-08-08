@@ -92,6 +92,7 @@ public class VideoServiceImpl implements IVideoService {
                 uploadTaskMapper.insert(task);
                 archiveService.saveOriginal(task.getId(), filename, target.toString(),
                         size, md5);
+                nfsService.deleteRecursively(chunkDir);
             }
         } catch (IOException e) {
             throw BusinessException.error("Failed to store chunk: " + e.getMessage());
