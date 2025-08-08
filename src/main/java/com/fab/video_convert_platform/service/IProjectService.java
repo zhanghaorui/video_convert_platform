@@ -28,6 +28,14 @@ public interface IProjectService {
     List<ProjectConfig> list();
 
     /**
+     * Retrieve a configuration by project number.
+     *
+     * @param projectNo unique project identifier
+     * @return configuration or {@code null} if not found
+     */
+    ProjectConfig getByProjectNo(String projectNo);
+
+    /**
      * Update an existing configuration.
      * @param config configuration with id
      * @return updated configuration
