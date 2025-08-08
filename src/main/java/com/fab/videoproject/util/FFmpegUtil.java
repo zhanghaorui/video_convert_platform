@@ -65,7 +65,6 @@ public class FFmpegUtil {
         cmd.add("-c:v");
         cmd.add("libx264");
         cmd.add("-c:a");
-        cmd.add("aac");
         cmd.add(output.toString());
         runCommand(cmd);
     }
