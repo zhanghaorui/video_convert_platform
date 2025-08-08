@@ -32,6 +32,9 @@ public class VideoArchiveFile {
 
     private String fileMd5;
 
+    /**
+     * Processing status, see {@link com.fab.videoproject.domain.enums.ArchiveStatus}.
+     */
     private String status;
 
     private LocalDateTime createTime;
