@@ -103,6 +103,9 @@ public class FFmpegUtil {
             throw new IOException("ffprobe command failed with code " + code);
         }
         String[] parts = result.split("x");
+        if (parts.length != 2) {
+            throw new IOException("Unexpected ffprobe output format: '" + result + "'");
+        }
         int w = Integer.parseInt(parts[0]);
         if (parts.length != 2) {
             throw new IOException("Malformed ffprobe output: expected 'widthxheight', got '" + result + "'");
