@@ -204,6 +204,10 @@ public class VideoServiceImpl implements IVideoService {
             input = mp4;
         }
         int[] res = FFmpegUtil.getResolution(input);
+        if (res == null || res.length < 2) {
+            taskLogService.info(task.getId(), "failed to get video resolution");
+            throw new BusinessException("Failed to parse video resolution for input: " + input);
+        }
         if (res[0] > 1920 || res[1] > 1080) {
             taskLogService.info(task.getId(), "downscale to 1080p");
             Path scaled = input.resolveSibling("tmp_1080p.mp4");
