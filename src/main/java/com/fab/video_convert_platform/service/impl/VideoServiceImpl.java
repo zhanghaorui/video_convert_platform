@@ -6,6 +6,7 @@ import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.enums.TaskStatus;
+import com.fab.video_convert_platform.domain.enums.VideoQuality;
 import com.fab.video_convert_platform.infra.MqVideoMessage;
 import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
 import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
@@ -208,22 +209,21 @@ public class VideoServiceImpl implements IVideoService {
             taskLogService.info(task.getId(), "failed to get video resolution");
             throw new BusinessException("Failed to parse video resolution for input: " + input);
         }
-        if (res[0] > 1920 || res[1] > 1080) {
+        int origW = res[0];
+        int origH = res[1];
+        if (origW > 1920 || origH > 1080) {
             taskLogService.info(task.getId(), "downscale to 1080p");
             Path scaled = input.resolveSibling("tmp_1080p.mp4");
             FFmpegUtil.transcode(input, scaled, 1920, 1080);
             temps.add(scaled);
             input = scaled;
+            origW = 1920;
+            origH = 1080;
         }
-        String[] qualities = {VideoConstants.QUALITY_LOW, VideoConstants.QUALITY_NORMAL};
-        int[][] scales = {{640, 360}, {1280, 720}};
-        for (int i = 0; i < qualities.length; i++) {
-            String quality = qualities[i];
-            int w = scales[i][0];
         for (VideoQuality vq : VideoQuality.values()) {
             String quality = vq.getName();
-            int w = vq.getWidth();
-            int h = vq.getHeight();
+            int w = vq.getWidth() > 0 ? vq.getWidth() : origW;
+            int h = vq.getHeight() > 0 ? vq.getHeight() : origH;
             Path sliceDir = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
                     task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
                     task.getVersionNo(), task.getUuid(), quality);
@@ -244,12 +244,11 @@ public class VideoServiceImpl implements IVideoService {
         for (Path tmp : temps) {
             Files.deleteIfExists(tmp);
         }
-        callbackService.notify(task);
         try {
             callbackService.notify(task);
             taskLogService.info(task.getId(), "callback finished");
         } catch (Exception e) {
-            taskLogService.error(task.getId(), "callback failed: " + e.getMessage(), e);
+            taskLogService.error(task.getId(), "callback failed: " + e.getMessage());
         }
         task.setStatus(TaskStatus.FINISHED.name());
         uploadTaskMapper.updateById(task);

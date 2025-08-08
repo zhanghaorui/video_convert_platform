@@ -1,6 +1,7 @@
 package com.fab.video_convert_platform.service.impl;
 
 import com.fab.video_convert_platform.domain.ProjectConfig;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
 import com.fab.video_convert_platform.service.IProjectService;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,13 @@ public class ProjectServiceImpl implements IProjectService {
     @Override
     public List<ProjectConfig> list() {
         return projectConfigMapper.selectList(null);
+    }
+
+    @Override
+    public ProjectConfig getByProjectNo(String projectNo) {
+        return projectConfigMapper.selectOne(new QueryWrapper<ProjectConfig>()
+                .eq("project_no", projectNo)
+                .last("limit 1"));
     }
 
     @Override

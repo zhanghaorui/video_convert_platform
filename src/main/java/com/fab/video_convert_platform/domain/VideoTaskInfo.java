@@ -1,25 +1,20 @@
 package com.fab.video_convert_platform.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import java.time.LocalDateTime;
 
 /**
  * Normal task log entry stored in video_task_info table.
  */
 @Data
 @TableName("video_task_info")
-public class VideoTaskInfo {
+public class VideoTaskInfo extends BaseEntity {
 
-    @TableId(type = IdType.AUTO)
-    private Long id;
-
+    @TableField("task_id")
     private Long taskId;
 
+    @TableField("message")
     private String message;
-
-    private LocalDateTime createTime;
 }
 
