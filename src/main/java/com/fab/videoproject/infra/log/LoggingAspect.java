@@ -20,8 +20,11 @@ import java.util.Arrays;
 @Component
 public class LoggingAspect {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
 
+    public LoggingAspect(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
     @Pointcut("execution(* com.fab.videoproject.controller..*(..))")
     public void controllerMethods() {
     }
