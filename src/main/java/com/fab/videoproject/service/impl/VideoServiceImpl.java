@@ -5,6 +5,7 @@ import com.fab.videoproject.common.BusinessException;
 import com.fab.videoproject.common.VideoConstants;
 import com.fab.videoproject.domain.ProjectConfig;
 import com.fab.videoproject.domain.VideoUploadTask;
+import com.fab.videoproject.infra.MqVideoMessage;
 import com.fab.videoproject.mapper.ProjectConfigMapper;
 import com.fab.videoproject.mapper.VideoUploadTaskMapper;
 import com.fab.videoproject.service.IArchiveService;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.UUID;
 
 /**
@@ -99,6 +101,44 @@ public class VideoServiceImpl implements IVideoService {
             }
         } catch (IOException e) {
             throw BusinessException.error("Failed to store chunk: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = RuntimeException.class)
+    public void processMqMessage(MqVideoMessage message) {
+        ProjectConfig config = projectConfigMapper.selectOne(
+                new QueryWrapper<ProjectConfig>().eq("project_no", message.getProjectNo()).last("limit 1"));
+        if (config == null) {
+            throw BusinessException.error("Project config not found");
+        }
+        Path source = Paths.get(message.getFilePath());
+        if (!Files.exists(source)) {
+            throw BusinessException.error("Source file not found");
+        }
+        try {
+            if (message.getFileMd5() == null) {
+                throw BusinessException.error("MD5 is required for MQ message");
+            }
+            String md5 = DigestUtil.md5(source);
+            if (!message.getFileMd5().equalsIgnoreCase(md5)) {
+                throw BusinessException.error("MD5 mismatch");
+            }
+            String fileName = source.getFileName().toString();
+            int versionNo = VideoConstants.DEFAULT_VERSION_NO;
+            String uuid = UUID.randomUUID().toString().replace("-", "");
+            Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
+                    message.getProjectNo(), message.getPatientCode(), message.getTpStage(),
+                    versionNo, uuid, fileName);
+            nfsService.copyFile(source, target);
+            long size = Files.size(target);
+            VideoUploadTask task = VideoUploadTask.createOriginalSaved(message.getProjectNo(),
+                    message.getPatientCode(), message.getTpStage(), uuid, versionNo,
+                    VideoConstants.SOURCE_MQ, fileName, target.toString(), size, md5);
+            uploadTaskMapper.insert(task);
+            archiveService.saveOriginal(task.getId(), fileName, target.toString(), size, md5);
+        } catch (IOException e) {
+            throw BusinessException.error("Failed to process MQ file: " + e.getMessage());
         }
     }
 }

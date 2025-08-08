@@ -9,6 +9,8 @@ public final class VideoConstants {
     }
 
     public static final String SOURCE_CONTROLLER = "controller";
+    /** Source identifier for MQ-driven tasks. */
+    public static final String SOURCE_MQ = "mq";
     public static final int DEFAULT_VERSION_NO = 1;
     public static final String DIR_ORIGINAL = "original";
     public static final String DIR_CHUNK = "chunk";
