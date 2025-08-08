@@ -5,8 +5,7 @@ package com.fab.video_convert_platform.domain.enums;
  */
 public enum VideoQuality {
     LOW("low", 640, 360),
-    NORMAL("normal", 0, 0); // 0 means keep original resolution
-    NORMAL("normal", ORIGINAL_RESOLUTION, ORIGINAL_RESOLUTION); // ORIGINAL_RESOLUTION means keep original resolution
+    NORMAL("normal", ORIGINAL_RESOLUTION, ORIGINAL_RESOLUTION);
 
     private static final int ORIGINAL_RESOLUTION = -1;
     private final String name;

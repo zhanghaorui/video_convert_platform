@@ -1,7 +1,7 @@
 package com.fab.video_convert_platform.service;
 
 import com.fab.video_convert_platform.domain.VideoUploadTask;
-import com.fab.video_convert_platform.infra.MqVideoMessage;
+import com.fab.video_convert_platform.service.dto.MqVideoMessage;
 import org.springframework.web.multipart.MultipartFile;
 
 /**

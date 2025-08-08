@@ -1,9 +1,10 @@
 package com.fab.video_convert_platform.controller;
 
 import com.fab.video_convert_platform.common.ApiResponse;
+import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.service.IProjectService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,10 +14,10 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/project")
+@RequiredArgsConstructor
 public class ProjectController {
 
-    @Autowired
-    private IProjectService projectService;
+    private final IProjectService projectService;
 
     @PostMapping
     public ApiResponse<ProjectConfig> create(@RequestBody ProjectConfig config) {
@@ -37,7 +38,7 @@ public class ProjectController {
     public ApiResponse<ProjectConfig> update(@PathVariable Long id,
                                              @RequestBody ProjectConfig config) {
         if (config.getId() != null && !config.getId().equals(id)) {
-            return ApiResponse.error("ID in path and body do not match", 400);
+            return ApiResponse.failure(ErrorCode.PARAM_ERROR, "ID in path and body do not match");
         }
         config.setId(id);
         return ApiResponse.success(projectService.update(config));

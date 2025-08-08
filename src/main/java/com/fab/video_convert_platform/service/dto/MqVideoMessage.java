@@ -1,4 +1,4 @@
-package com.fab.video_convert_platform.infra;
+package com.fab.video_convert_platform.service.dto;
 
 import lombok.Data;
 

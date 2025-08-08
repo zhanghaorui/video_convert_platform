@@ -4,29 +4,30 @@ package com.fab.video_convert_platform.common;
  * Custom business exception with error code support.
  */
 public class BusinessException extends RuntimeException {
-    public static final int DEFAULT_SUCCESS_CODE = 0;
-    public static final int DEFAULT_ERROR_CODE = -1;
+    private final ErrorCode errorCode;
 
-    private final int code;
-
-    public BusinessException(int code, String message) {
+    public BusinessException(ErrorCode errorCode, String message) {
         super(message);
-        this.code = code;
+        this.errorCode = errorCode;
     }
 
-    public BusinessException(String message) {
-        this(DEFAULT_ERROR_CODE, message);
+    public BusinessException(ErrorCode errorCode) {
+        this(errorCode, errorCode.getMessage());
     }
 
-    public BusinessException() {
-        this(DEFAULT_ERROR_CODE, "Business exception");
+    public ErrorCode getErrorCode() {
+        return errorCode;
     }
 
     public int getCode() {
-        return code;
+        return errorCode.getCode();
     }
 
-    public static BusinessException error(String message) {
-        return new BusinessException(DEFAULT_ERROR_CODE, message);
+    public static BusinessException of(ErrorCode errorCode) {
+        return new BusinessException(errorCode);
+    }
+
+    public static BusinessException of(ErrorCode errorCode, String message) {
+        return new BusinessException(errorCode, message);
     }
 }
