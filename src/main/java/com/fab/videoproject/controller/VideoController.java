@@ -1,20 +1,18 @@
 package com.fab.videoproject.controller;
 
-import com.fab.videoproject.common.ApiResponse;
 import com.fab.videoproject.service.IVideoService;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import org.springframework.beans.factory.annotation.Autowired;
-
+/**
+ * REST controller for managing video operations.
+ */
 @RestController
+@RequestMapping("/videos")
 public class VideoController {
 
     @Autowired
     private IVideoService videoService;
-
-    @GetMapping("/ping")
-    public ApiResponse<String> ping() {
-        return ApiResponse.success(videoService.ping());
-    }
+    // endpoints for video handling will be added here
 }

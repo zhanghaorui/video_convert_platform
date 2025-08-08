@@ -4,12 +4,9 @@ import com.fab.videoproject.service.IVideoService;
 import org.springframework.stereotype.Service;
 
 /**
- * Implementation of video service.
+ * Implementation of video service operations.
  */
 @Service
 public class VideoServiceImpl implements IVideoService {
-    @Override
-    public String ping() {
-        return "video service pong";
-    }
+    // concrete video processing logic will be added in future iterations
 }
