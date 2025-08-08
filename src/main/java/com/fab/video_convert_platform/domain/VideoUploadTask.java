@@ -1,12 +1,10 @@
 package com.fab.video_convert_platform.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fab.video_convert_platform.domain.enums.TaskStatus;
 import com.fab.video_convert_platform.util.DateUtil;
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 /**
@@ -14,41 +12,46 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("video_upload_task")
-public class VideoUploadTask {
+public class VideoUploadTask extends BaseEntity {
 
-    @TableId(type = IdType.AUTO)
-    private Long id;
-
+    @TableField("project_no")
     private String projectNo;
 
+    @TableField("patient_code")
     private String patientCode;
 
+    @TableField("tp_stage")
     private String tpStage;
 
+    @TableField("uuid")
     private String uuid;
 
+    @TableField("version_no")
     private Integer versionNo;
 
+    @TableField("source")
     private String source;
 
     /**
      * Task processing status, see {@link com.fab.video_convert_platform.domain.enums.TaskStatus}.
      */
+    @TableField("status")
     private String status;
 
+    @TableField("main_file_name")
     private String mainFileName;
 
+    @TableField("main_file_path")
     private String mainFilePath;
 
+    @TableField("file_size")
     private Long fileSize;
 
+    @TableField("file_md5")
     private String fileMd5;
 
+    @TableField("error_msg")
     private String errorMsg;
-
-    private LocalDateTime createTime;
-
-    private LocalDateTime updateTime;
 
     /**
      * Build a task for an original video that has been saved to NFS.

@@ -1,33 +1,35 @@
 package com.fab.video_convert_platform.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import java.time.LocalDateTime;
 
 /**
  * Project configuration entity mapped to project_config table.
  */
 @Data
 @TableName("project_config")
-public class ProjectConfig {
+public class ProjectConfig extends BaseEntity {
 
-    @TableId(type = IdType.AUTO)
-    private Long id;
-
+    @TableField("project_no")
     private String projectNo;
 
+    @TableField("project_name")
     private String projectName;
 
+    @TableField("archive_root")
     private String archiveRoot;
 
+    /**
+     * Callback address for notifying business systems.
+     */
+    @TableField("callback_url")
+    private String callbackUrl;
+
+    @TableField("is_active")
     private Boolean isActive;
 
+    @TableField("ext_json")
     private String extJson;
-
-    private LocalDateTime createTime;
-
-    private LocalDateTime updateTime;
 }
 
