@@ -20,7 +20,7 @@ public class ProjectServiceImpl implements IProjectService {
     @Override
     public ProjectConfig create(ProjectConfig config) {
         projectConfigMapper.insert(config);
-        return config;
+        return projectConfigMapper.selectById(config.getId());
     }
 
     @Override
