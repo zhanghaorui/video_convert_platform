@@ -24,7 +24,7 @@ public class RabbitMqConsumer {
         this.videoService = videoService;
     }
 
-    @RabbitListener(queues = "${rabbitmq.video-task-queue}")
+    @RabbitListener(queues = "${mq.queues.video-task}")
     public void onMessage(String message) {
         try {
             MqVideoMessage msg = objectMapper.readValue(message, MqVideoMessage.class);
