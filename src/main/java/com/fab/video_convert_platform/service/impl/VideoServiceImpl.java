@@ -7,13 +7,13 @@ import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.service.dto.MqVideoMessage;
-import com.fab.video_convert_platform.domain.service.VideoTaskDomainService;
 import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
 import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import com.fab.video_convert_platform.service.IArchiveService;
 import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.service.ITaskLogService;
 import com.fab.video_convert_platform.infra.NfsService;
+import com.fab.video_convert_platform.infra.LocalSliceTaskExecutor;
 import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
 import org.springframework.stereotype.Service;
@@ -37,20 +37,20 @@ public class VideoServiceImpl implements IVideoService {
     private final IArchiveService archiveService;
     private final NfsService nfsService;
     private final ITaskLogService taskLogService;
-    private final VideoTaskDomainService videoTaskDomainService;
+    private final LocalSliceTaskExecutor sliceTaskExecutor;
 
     public VideoServiceImpl(ProjectConfigMapper projectConfigMapper,
                             VideoUploadTaskMapper uploadTaskMapper,
                             IArchiveService archiveService,
                             NfsService nfsService,
                             ITaskLogService taskLogService,
-                            VideoTaskDomainService videoTaskDomainService) {
+                            LocalSliceTaskExecutor sliceTaskExecutor) {
         this.projectConfigMapper = projectConfigMapper;
         this.uploadTaskMapper = uploadTaskMapper;
         this.archiveService = archiveService;
         this.nfsService = nfsService;
         this.taskLogService = taskLogService;
-        this.videoTaskDomainService = videoTaskDomainService;
+        this.sliceTaskExecutor = sliceTaskExecutor;
     }
 
     @Override
@@ -224,28 +224,7 @@ public class VideoServiceImpl implements IVideoService {
      * 异步处理视频切片（事务外执行）
      */
     private void processVideoAsync(ProjectConfig config, VideoUploadTask task) {
-        try {
-            // 异步执行视频处理，避免占用事务
-            videoTaskDomainService.processSlices(config, task);
-        } catch (Exception e) {
-            // 处理失败时更新任务状态
-            taskLogService.error(task.getId(), "video processing failed: " + e.getMessage());
-            task.markError(e.getMessage());
-            uploadTaskMapper.updateById(task);
-
-            // 根据异常类型抛出相应的业务异常
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-                throw new BusinessException(ErrorCode.FFMPEG_INTERRUPTED,
-                    "Video processing interrupted");
-            } else if (e instanceof IOException) {
-                throw new BusinessException(ErrorCode.STORE_FILE_FAILED,
-                    "Video processing I/O error: " + e.getMessage());
-            } else {
-                throw new BusinessException(ErrorCode.SYSTEM_ERROR,
-                    "Video processing error: " + e.getMessage());
-            }
-        }
+        sliceTaskExecutor.submit(config, task);
     }
 
     @Override
