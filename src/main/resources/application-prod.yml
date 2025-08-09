@@ -31,8 +31,9 @@ spring:
     publisher-returns: true
 
 # 生产环境MQ队列配置
-rabbitmq:
-  video-task-queue: video.task.queue.prod
+mq:
+  queues:
+    video-task: video.task.queue.prod
 
 # 生产环境NFS配置
 nfs:

@@ -19,8 +19,9 @@ spring:
     virtual-host: /
     connection-timeout: 30000
 
-rabbitmq:
-  video-task-queue: video.task.queue.dev
+mq:
+  queues:
+    video-task: video.task.queue.dev
 
 nfs:
   root-path: /Users/zhanghaorui/dev/nfs-storage
