@@ -63,6 +63,8 @@ public class LocalSliceTaskExecutor {
             log.error("slice task failed for taskId={}, projectId={}", 
                 task.getId(), sliceTask.getProjectConfig().getProjectId(), e);
             taskLogService.error(task.getId(), "slice failed: " + e.getMessage());
+            task.markError();
+            uploadTaskMapper.updateById(task);
         }
     }
 
