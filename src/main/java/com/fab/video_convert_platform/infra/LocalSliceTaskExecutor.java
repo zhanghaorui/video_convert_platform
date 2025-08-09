@@ -44,7 +44,7 @@ public class LocalSliceTaskExecutor {
     }
 
     private void work() {
-        while (true) {
+        while (running && !Thread.currentThread().isInterrupted()) {
             try {
                 SliceTask task = queue.take();
                 sliceOne(task);
