@@ -76,13 +76,13 @@ public class MonitorController {
         long freeMemory = runtime.freeMemory();
         long usedMemory = totalMemory - freeMemory;
 
-        performance.put("memory", Map.of(
-            "total", totalMemory / 1024 / 1024 + "MB",
-            "used", usedMemory / 1024 / 1024 + "MB",
-            "free", freeMemory / 1024 / 1024 + "MB",
-            "usagePercent", String.format("%.2f%%", (double) usedMemory / totalMemory * 100)
-        ));
+        Map<String, String> memoryInfo = new HashMap<>();
+        memoryInfo.put("total", totalMemory / 1024 / 1024 + "MB");
+        memoryInfo.put("used", usedMemory / 1024 / 1024 + "MB");
+        memoryInfo.put("free", freeMemory / 1024 / 1024 + "MB");
+        memoryInfo.put("usagePercent", String.format("%.2f%%", (double) usedMemory / totalMemory * 100));
 
+        performance.put("memory", memoryInfo);
         performance.put("activeTasks", metrics.getActiveTasksCount());
         performance.put("availableProcessors", Runtime.getRuntime().availableProcessors());
 

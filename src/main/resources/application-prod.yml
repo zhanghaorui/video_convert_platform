@@ -12,9 +12,9 @@ spring:
   # 生产环境数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://prod-db:3306/video_prod?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
-    username: video
-    password: secure_password
+    url: jdbc:mysql://172.18.22.104:2883/video_platform?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
+    username: root@fab
+    password: _6WbVk1V[*xTzq9zCTpDytVuF{_
     hikari:
       maximum-pool-size: 50         # 生产环境大连接池
       minimum-idle: 10
