@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Local queue driven executor for heavy FFmpeg slicing operations.
- * @author system
+ * @author 张浩锐
  */
 @Slf4j
 @Component

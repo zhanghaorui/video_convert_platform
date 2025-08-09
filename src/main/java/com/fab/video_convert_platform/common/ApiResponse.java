@@ -1,15 +1,9 @@
 package com.fab.video_convert_platform.common;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 /**
- * Standard API response wrapper.
+ * 统一API响应封装类
+ * @author 张浩锐
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class ApiResponse<T> {
     private int code;
     private String message;

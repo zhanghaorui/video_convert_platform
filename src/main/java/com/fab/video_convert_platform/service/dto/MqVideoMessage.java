@@ -4,6 +4,7 @@ import lombok.Data;
 
 /**
  * Payload for MQ-driven video tasks.
+ * @author 张浩锐
  */
 @Data
 public class MqVideoMessage {
@@ -16,4 +17,3 @@ public class MqVideoMessage {
     /** MD5 checksum provided by upstream. */
     private String fileMd5;
 }
-

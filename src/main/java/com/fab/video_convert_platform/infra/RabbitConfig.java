@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Profile;
 
 /**
  * RabbitMQ listener configuration with manual acknowledgement.
- * @author system
+ * @author 张浩锐
  */
 @Configuration
 @Profile("!test")

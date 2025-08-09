@@ -27,6 +27,7 @@ import java.util.List;
  * 视频任务处理领域服务
  * 负责视频转码、切片等核心业务逻辑的编排
  * 遵循DDD设计原则，封装复杂的业务规则
+ * @author 张浩锐
  */
 @Slf4j
 @Service

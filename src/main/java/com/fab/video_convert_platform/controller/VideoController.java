@@ -18,6 +18,7 @@ import javax.validation.constraints.NotBlank;
 /**
  * 视频处理控制器
  * 遵循RESTful设计规范和P3C编码规约
+ * @author 张浩锐
  */
 @Slf4j
 @RestController

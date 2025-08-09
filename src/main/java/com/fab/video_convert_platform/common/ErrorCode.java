@@ -1,7 +1,8 @@
 package com.fab.video_convert_platform.common;
 
 /**
- * Unified error codes for API responses and exceptions.
+ * 错误码枚举类
+ * @author 张浩锐
  */
 public enum ErrorCode {
     SUCCESS(0, "OK"),

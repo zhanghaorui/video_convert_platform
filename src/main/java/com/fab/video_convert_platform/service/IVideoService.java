@@ -6,6 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Service interface for video-related operations.
+ * @author 张浩锐
  */
 public interface IVideoService {
 
