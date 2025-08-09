@@ -1,5 +1,11 @@
 package com.fab.video_convert_platform.util;
 
+import com.fab.video_convert_platform.common.BusinessException;
+import com.fab.video_convert_platform.common.ErrorCode;
+import com.fab.video_convert_platform.config.VideoProcessingProperties;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,44 +16,86 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Helper utilities for invoking FFmpeg command line.
+ * Helper utilities for invoking FFmpeg command line with timeout support.
  */
 @Slf4j
+@Component
 public class FFmpegUtil {
 
-    private FFmpegUtil() {
+    private final VideoProcessingProperties properties;
+
+    public FFmpegUtil(VideoProcessingProperties properties) {
+        this.properties = properties;
     }
 
     /**
-     * Execute given command and ensure it exits with 0.
+     * Execute given command with timeout control.
      */
-    public static void runCommand(List<String> command) throws IOException, InterruptedException {
+    public void runCommand(List<String> command) throws IOException, InterruptedException {
+        runCommand(command, properties.getFfmpeg().getTimeout());
+    }
+
+    /**
+     * Execute given command with custom timeout.
+     */
+    public void runCommand(List<String> command, long timeoutMs) throws IOException, InterruptedException {
+        log.info("执行FFmpeg命令: {}", String.join(" ", command));
+
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
-        Process p = pb.start();
+        Process process = pb.start();
+
+        boolean finished = false;
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+
+            // 使用超时等待进程完成
+            finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
+
+            if (!finished) {
+                log.warn("FFmpeg命令执行超时，正在强制终止进程");
+                process.destroyForcibly();
+                throw new BusinessException(ErrorCode.FFMPEG_TIMEOUT,
+                        "FFmpeg processing timeout after " + timeoutMs + "ms");
+            }
+
+            // 读取输出日志
             String line;
             while ((line = reader.readLine()) != null) {
-                log.info(line);
+                log.debug("FFmpeg输出: {}", line);
             }
-        }
-        int code = p.waitFor();
-        if (code != 0) {
-            throw new IOException("ffmpeg command failed with code " + code);
+
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                log.error("FFmpeg命令执行失败，退出码: {}", exitCode);
+                throw new BusinessException(ErrorCode.FFMPEG_COMMAND_FAILED,
+                        "FFmpeg command failed with exit code " + exitCode);
+            }
+
+            log.info("FFmpeg命令执行成功");
+        } finally {
+            if (!finished && process.isAlive()) {
+                process.destroyForcibly();
+            }
         }
     }
 
     /**
      * Validate video file integrity by invoking ffmpeg with error reporting.
      */
-    public static void validate(Path input) throws IOException, InterruptedException {
+    public void validate(Path input) throws IOException, InterruptedException {
+        log.info("开始验证视频文件完整性: {}", input);
+
+        if (!Files.exists(input)) {
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND,
+                    "Video file not found: " + input);
+        }
+
         List<String> cmd = new ArrayList<>();
-        cmd.add("ffmpeg");
+        cmd.add(properties.getFfmpeg().getExecutablePath());
         cmd.add("-v");
         cmd.add("error");
         cmd.add("-i");
@@ -55,30 +103,56 @@ public class FFmpegUtil {
         cmd.add("-f");
         cmd.add("null");
         cmd.add("-");
-        runCommand(cmd);
+
+        try {
+            runCommand(cmd);
+            log.info("视频文件验证通过: {}", input);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
+                throw new BusinessException(ErrorCode.VIDEO_CORRUPTED,
+                        "Video file is corrupted: " + input);
+            }
+            throw e;
+        }
     }
 
     /**
      * Convert AVI video to MP4 using H.264/AAC codecs.
      */
-    public static void aviToMp4(Path input, Path output) throws IOException, InterruptedException {
+    public void aviToMp4(Path input, Path output) throws IOException, InterruptedException {
+        log.info("开始转换AVI到MP4: {} -> {}", input, output);
+
         Files.createDirectories(output.getParent());
         List<String> cmd = new ArrayList<>();
-        cmd.add("ffmpeg");
+        cmd.add(properties.getFfmpeg().getExecutablePath());
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-c:v");
         cmd.add("libx264");
         cmd.add("-c:a");
         cmd.add("aac");
+        cmd.add("-threads");
+        cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
         cmd.add(output.toString());
-        runCommand(cmd);
+
+        try {
+            runCommand(cmd);
+            log.info("AVI转MP4完成: {}", output);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
+                throw new BusinessException(ErrorCode.TRANSCODE_FAILED,
+                        "Failed to convert AVI to MP4: " + e.getMessage());
+            }
+            throw e;
+        }
     }
 
     /**
-     * Probe video resolution using ffprobe.
+     * Probe video resolution using ffprobe with timeout.
      */
-    public static int[] getResolution(Path input) throws IOException, InterruptedException {
+    public int[] getResolution(Path input) throws IOException, InterruptedException {
+        log.info("获取视频分辨率: {}", input);
+
         List<String> cmd = new ArrayList<>();
         cmd.add("ffprobe");
         cmd.add("-v");
@@ -90,45 +164,73 @@ public class FFmpegUtil {
         cmd.add("-of");
         cmd.add("csv=s=x:p=0");
         cmd.add(input.toString());
+
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
-        Process p = pb.start();
+        Process process = pb.start();
+
         String result;
+        boolean finished = false;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             InputStream in = p.getInputStream()) {
+             InputStream in = process.getInputStream()) {
+
+            // 使用较短的超时时间获取分辨率
+            finished = process.waitFor(10000, TimeUnit.MILLISECONDS);
+
+            if (!finished) {
+                process.destroyForcibly();
+                throw new BusinessException(ErrorCode.FFMPEG_TIMEOUT,
+                        "FFprobe timeout when getting resolution");
+            }
+
             byte[] buf = new byte[1024];
             int len;
             while ((len = in.read(buf)) != -1) {
                 baos.write(buf, 0, len);
             }
             result = baos.toString(StandardCharsets.UTF_8.name()).trim();
+        } finally {
+            if (!finished && process.isAlive()) {
+                process.destroyForcibly();
+            }
         }
-        int code = p.waitFor();
-        if (code != 0) {
-            throw new IOException("ffprobe command failed with code " + code);
+
+        int exitCode = process.exitValue();
+        if (exitCode != 0) {
+            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                    "Failed to get video resolution, ffprobe exit code: " + exitCode);
         }
+
         String[] parts = result.split("x");
         if (parts.length != 2) {
-            throw new IOException("Unexpected ffprobe output format: '" + result + "'");
+            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                    "Unexpected ffprobe output format: '" + result + "'");
         }
+
         int w, h;
         try {
             w = Integer.parseInt(parts[0].trim());
             h = Integer.parseInt(parts[1].trim());
         } catch (NumberFormatException e) {
-            throw new IOException("Malformed ffprobe output: non-numeric resolution '" + result + "'", e);
+            log.error("解析视频分辨率失败: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                    "Malformed ffprobe output: non-numeric resolution '" + result + "'. Error: " + e.getMessage());
         }
+
+        log.info("视频分辨率: {}x{}", w, h);
         return new int[]{w, h};
     }
 
     /**
      * Transcode input video into mp4 with specified scale.
      */
-    public static void transcode(Path input, Path output, int width, int height)
+    public void transcode(Path input, Path output, int width, int height)
             throws IOException, InterruptedException {
+        log.info("开始转码视频: {} -> {} ({}x{})", input, output, width, height);
+
         Files.createDirectories(output.getParent());
         List<String> cmd = new ArrayList<>();
-        cmd.add("ffmpeg");
+        cmd.add(properties.getFfmpeg().getExecutablePath());
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-vf");
@@ -139,32 +241,65 @@ public class FFmpegUtil {
         cmd.add("medium");
         cmd.add("-crf");
         cmd.add("23");
+        cmd.add("-threads");
+        cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
         cmd.add(output.toString());
-        runCommand(cmd);
+
+        try {
+            runCommand(cmd);
+            log.info("视频转码完成: {}", output);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED ||
+                    e.getErrorCode() == ErrorCode.FFMPEG_TIMEOUT) {
+                throw new BusinessException(ErrorCode.TRANSCODE_FAILED,
+                        "Failed to transcode video: " + e.getMessage());
+            }
+            throw e;
+        }
     }
 
     /**
      * Slice mp4 file into HLS m3u8 under target directory.
      */
-    public static Path sliceToM3u8(Path input, Path outputDir)
-            throws IOException, InterruptedException {
+    public Path sliceToM3u8(Path input, Path outputDir) throws IOException, InterruptedException {
+        log.info("开始切片生成M3U8: {} -> {}", input, outputDir);
+
         Files.createDirectories(outputDir);
-        Path m3u8 = outputDir.resolve(com.fab.video_convert_platform.common.VideoConstants.M3U8_NAME);
+        Path m3u8Path = outputDir.resolve("index.m3u8");
+
         List<String> cmd = new ArrayList<>();
-        cmd.add("ffmpeg");
+        cmd.add(properties.getFfmpeg().getExecutablePath());
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-c:v");
         cmd.add("copy");
-        cmd.add("-an");
+        cmd.add("-c:a");
+        cmd.add("copy");
         cmd.add("-f");
         cmd.add("hls");
         cmd.add("-hls_time");
-        cmd.add("10");
+        cmd.add(String.valueOf(properties.getFfmpeg().getSegmentDuration()));
         cmd.add("-hls_list_size");
         cmd.add("0");
-        cmd.add(m3u8.toString());
-        runCommand(cmd);
-        return m3u8;
+        cmd.add(m3u8Path.toString());
+
+        try {
+            runCommand(cmd);
+
+            if (!Files.exists(m3u8Path)) {
+                throw new BusinessException(ErrorCode.M3U8_GENERATION_FAILED,
+                        "M3U8 file not generated: " + m3u8Path);
+            }
+
+            log.info("M3U8切片完成: {}", m3u8Path);
+            return m3u8Path;
+        } catch (BusinessException e) {
+            if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED ||
+                    e.getErrorCode() == ErrorCode.FFMPEG_TIMEOUT) {
+                throw new BusinessException(ErrorCode.SLICE_FAILED,
+                        "Failed to slice video to M3U8: " + e.getMessage());
+            }
+            throw e;
+        }
     }
 }

@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 
 /**
  * Base entity with common identifier and auditing fields.
+ * @author zhanghaorui
  */
 @Data
 public abstract class BaseEntity {

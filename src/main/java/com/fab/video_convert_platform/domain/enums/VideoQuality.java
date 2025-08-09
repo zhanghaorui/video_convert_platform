@@ -5,9 +5,8 @@ package com.fab.video_convert_platform.domain.enums;
  */
 public enum VideoQuality {
     LOW("low", 640, 360),
-    NORMAL("normal", ORIGINAL_RESOLUTION, ORIGINAL_RESOLUTION);
+    NORMAL("normal", -1, -1);  // 使用-1表示原始分辨率
 
-    private static final int ORIGINAL_RESOLUTION = -1;
     private final String name;
     private final int width;
     private final int height;
@@ -28,5 +27,12 @@ public enum VideoQuality {
 
     public int getHeight() {
         return height;
+    }
+
+    /**
+     * 判断是否使用原始分辨率
+     */
+    public boolean isOriginalResolution() {
+        return width == -1 || height == -1;
     }
 }

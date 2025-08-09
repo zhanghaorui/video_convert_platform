@@ -2,6 +2,7 @@ package com.fab.video_convert_platform.common;
 
 /**
  * Custom business exception with error code support.
+ * @author zhanghaorui
  */
 public class BusinessException extends RuntimeException {
     private final ErrorCode errorCode;
@@ -11,8 +12,17 @@ public class BusinessException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    public BusinessException(ErrorCode errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
+
     public BusinessException(ErrorCode errorCode) {
         this(errorCode, errorCode.getMessage());
+    }
+
+    public BusinessException(ErrorCode errorCode, Throwable cause) {
+        this(errorCode, errorCode.getMessage(), cause);
     }
 
     public ErrorCode getErrorCode() {
@@ -29,5 +39,13 @@ public class BusinessException extends RuntimeException {
 
     public static BusinessException of(ErrorCode errorCode, String message) {
         return new BusinessException(errorCode, message);
+    }
+
+    public static BusinessException of(ErrorCode errorCode, String message, Throwable cause) {
+        return new BusinessException(errorCode, message, cause);
+    }
+
+    public static BusinessException of(ErrorCode errorCode, Throwable cause) {
+        return new BusinessException(errorCode, cause);
     }
 }

@@ -3,10 +3,12 @@ package com.fab.video_convert_platform.domain;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * Archived file entity mapped to video_archive_file table.
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 @TableName("video_archive_file")
 public class VideoArchiveFile extends BaseEntity {

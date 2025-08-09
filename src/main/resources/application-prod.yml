@@ -1,22 +1,74 @@
 server:
   port: 8080
+  # 生产环境性能优化
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 20000
+    max-connections: 8192
 
 spring:
+  # 生产环境数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://prod-db:3306/video_prod?useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://prod-db:3306/video_prod?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
     username: video
     password: secure_password
+    hikari:
+      maximum-pool-size: 50         # 生产环境大连接池
+      minimum-idle: 10
+
+  # 生产环境RabbitMQ配置
   rabbitmq:
     host: prod-rabbitmq
     port: 5672
     username: video
     password: secure_password
+    virtual-host: /prod
+    connection-timeout: 30000
+    publisher-confirms: true        # 生产环境启用确认机制
+    publisher-returns: true
 
+# 生产环境MQ队列配置
 rabbitmq:
-  video-task-queue: video.task.queue
+  video-task-queue: video.task.queue.prod
 
-mybatis-plus:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+# 生产环境NFS配置
+nfs:
+  root-path: /data/nfs-storage/prod
+  base-url: https://files.yourcompany.com/videos
 
+# 生产环境日志配置 - 只覆盖需要调整的部分
+logging:
+  level:
+    com.fab.video_convert_platform: INFO
+    org.springframework: WARN
+    org.mybatis: WARN
+    com.zaxxer.hikari: WARN
+    org.apache.tomcat: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
+  file:
+    name: /var/log/video-platform/application.log
+    max-size: 100MB
+    max-history: 30
+
+# 生产环境性能调优 - 只覆盖需要优化的参数
+video:
+  processing:
+    temp-dir: /data/video-processing  # 生产环境高性能存储
+    chunk-size: 50MB                  # 生产环境增大分片
+    max-chunks: 2000                  # 增大分片数限制
+    ffmpeg:
+      timeout: 600000                 # 生产环境更长超时时间
+      threads: 4                      # FFmpeg并发线程数
+
+business:
+  callback:
+    retry-times: 5                    # 生产环境增加重试次数
+    timeout: 60000                    # 增加超时时间
+  archive:
+    batch-size: 100                   # 批处理大小
+    parallel-workers: 8               # 并发处理线程数

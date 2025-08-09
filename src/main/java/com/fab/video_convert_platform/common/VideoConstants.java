@@ -2,6 +2,7 @@ package com.fab.video_convert_platform.common;
 
 /**
  * Application-wide constants for video operations and archive paths.
+ * @author zhanghaorui
  */
 public final class VideoConstants {
 

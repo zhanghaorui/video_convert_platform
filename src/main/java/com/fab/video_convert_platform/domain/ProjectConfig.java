@@ -3,10 +3,13 @@ package com.fab.video_convert_platform.domain;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * Project configuration entity mapped to project_config table.
+ * @author zhanghaorui
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 @TableName("project_config")
 public class ProjectConfig extends BaseEntity {

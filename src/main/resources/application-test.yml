@@ -2,24 +2,52 @@ server:
   port: 8081
 
 spring:
+  # 测试环境数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/video_test?useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: root
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-    listener:
-      simple:
-        auto-startup: false
+    url: jdbc:mysql://test-db:3306/video_test?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: video_test
+    password: test_password
+    hikari:
+      maximum-pool-size: 15         # 测试环境中等连接池
+      minimum-idle: 3
 
+  # 测试环境RabbitMQ配置
+  rabbitmq:
+    host: test-rabbitmq
+    port: 5672
+    username: video_test
+    password: test_password
+    virtual-host: /test
+    connection-timeout: 30000
+
+# 测试环境MQ队列配置
 rabbitmq:
   video-task-queue: video.task.queue.test
 
-mybatis-plus:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+# 测试环境NFS配置
+nfs:
+  root-path: /data/nfs-storage/test
+  base-url: http://test-files.internal:8080/files
 
+# 测试环境日志配置
+logging:
+  level:
+    com.fab.video_convert_platform: INFO
+    org.springframework: WARN
+    org.mybatis: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/video-platform/test.log
+
+# 测试环境特殊配置
+video:
+  processing:
+    temp-dir: /tmp/video-test       # 测试环境临时目录
+    ffmpeg:
+      timeout: 60000                # 测试环境较短超时时间
+
+business:
+  callback:
+    retry-times: 2                  # 测试环境减少重试次数

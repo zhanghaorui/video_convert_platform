@@ -43,4 +43,13 @@ public interface IVideoService {
      * @param message MQ message payload
      */
     void processMqMessage(MqVideoMessage message);
+
+    /**
+     * Get upload task information by task ID.
+     *
+     * @param taskId task ID
+     * @return upload task information
+     * @throws com.fab.video_convert_platform.common.BusinessException if the task does not exist
+     */
+    VideoUploadTask getTaskById(Long taskId);
 }

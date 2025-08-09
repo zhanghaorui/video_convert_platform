@@ -4,19 +4,32 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/video_dev?useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/video_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: root
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 3
+
   rabbitmq:
     host: localhost
     port: 5672
     username: guest
     password: guest
+    virtual-host: /
+    connection-timeout: 30000
 
 rabbitmq:
   video-task-queue: video.task.queue.dev
 
-mybatis-plus:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+nfs:
+  root-path: /Users/zhanghaorui/dev/nfs-storage
+  base-url: http://localhost:8080/files
 
+logging:
+  level:
+    com.fab.video_convert_platform: DEBUG
+    org.springframework.web: DEBUG
+    org.mybatis: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
