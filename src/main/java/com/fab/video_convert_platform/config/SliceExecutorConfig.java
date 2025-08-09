@@ -25,7 +25,7 @@ public class SliceExecutorConfig {
         return new ThreadPoolExecutor(
             6, 6,
             0L, TimeUnit.MILLISECONDS,
-            new SynchronousQueue<>(),
+            new ArrayBlockingQueue<>(200),
             new ThreadPoolExecutor.CallerRunsPolicy());
     }
 }
