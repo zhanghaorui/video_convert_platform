@@ -60,7 +60,8 @@ public class LocalSliceTaskExecutor {
         try {
             domainService.processSlices(sliceTask.getProjectConfig(), task);
         } catch (Exception e) {
-            log.error("slice task failed", e);
+            log.error("slice task failed for taskId={}, projectId={}", 
+                task.getId(), sliceTask.getProjectConfig().getProjectId(), e);
             taskLogService.error(task.getId(), "slice failed: " + e.getMessage());
         }
     }
