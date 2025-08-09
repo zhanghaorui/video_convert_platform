@@ -74,7 +74,8 @@ public class VideoServiceImpl implements IVideoService {
 
             // 4. 数据库操作（使用事务）
             task = saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
-                uuid, versionNo, fileName, path, file.getSize(), md5);
+                uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
+                path, file.getSize(), md5);
 
             taskLogService.info(task.getId(), "original file archived");
         } catch (IOException e) {
@@ -115,7 +116,8 @@ public class VideoServiceImpl implements IVideoService {
 
                 // 4. 数据库操作（使用事务）
                 VideoUploadTask task = saveUploadTaskInTransaction(projectNo, patientCode,
-                    tpStage, uuid, versionNo, filename, target, size, md5);
+                    tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER,
+                    filename, target, size, md5);
 
                 taskLogService.info(task.getId(), "chunks merged and archived");
 
@@ -170,7 +172,7 @@ public class VideoServiceImpl implements IVideoService {
             // 5. 数据库操作（使用事务）
             VideoUploadTask task = saveUploadTaskInTransaction(message.getProjectNo(),
                     message.getPatientCode(), message.getTpStage(), uuid, versionNo,
-                    fileName, target, size, md5);
+                    VideoConstants.SOURCE_MQ, fileName, target, size, md5);
 
             taskLogService.info(task.getId(), "mq file archived");
 
@@ -201,12 +203,12 @@ public class VideoServiceImpl implements IVideoService {
      */
     @Transactional(rollbackFor = Exception.class)
     public VideoUploadTask saveUploadTaskInTransaction(String projectNo, String patientCode,
-            String tpStage, String uuid, Integer versionNo, String fileName,
-            Path filePath, Long fileSize, String md5) {
+            String tpStage, String uuid, Integer versionNo, String source,
+            String fileName, Path filePath, Long fileSize, String md5) {
 
         // 创建上传任务
         VideoUploadTask task = VideoUploadTask.createOriginalSaved(projectNo, patientCode,
-                tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
+                tpStage, uuid, versionNo, source, fileName,
                 filePath.toString(), fileSize, md5);
 
         uploadTaskMapper.insert(task);

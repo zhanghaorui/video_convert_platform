@@ -31,6 +31,7 @@ public class RabbitMqConsumer {
     @RabbitListener(queues = "${rabbitmq.video-task-queue}", containerFactory = "manualAckContainerFactory")
     public void onMessage(Message message, Channel channel) throws IOException {
         long tag = message.getMessageProperties().getDeliveryTag();
+
         try {
             MqVideoMessage msg = objectMapper.readValue(message.getBody(), MqVideoMessage.class);
             if (!StringUtils.hasText(msg.getProjectNo()) ||

@@ -22,8 +22,9 @@ spring:
     connection-timeout: 30000
 
 # 测试环境MQ队列配置
-rabbitmq:
-  video-task-queue: video.task.queue.test
+mq:
+  queues:
+    video-task: video.task.queue.test
 
 # 测试环境NFS配置
 nfs:
