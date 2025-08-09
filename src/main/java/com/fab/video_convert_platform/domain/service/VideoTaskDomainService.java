@@ -6,10 +6,10 @@ import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.enums.VideoQuality;
+import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.fab.video_convert_platform.service.IArchiveService;
 import com.fab.video_convert_platform.service.ICallbackService;
 import com.fab.video_convert_platform.service.ITaskLogService;
-import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
 import com.fab.video_convert_platform.util.FFmpegUtil;
@@ -36,18 +36,18 @@ public class VideoTaskDomainService {
     private final IArchiveService archiveService;
     private final ITaskLogService taskLogService;
     private final ICallbackService callbackService;
-    private final VideoUploadTaskMapper uploadTaskMapper;
+    private final VideoUploadTaskRepository uploadTaskRepository;
     private final FFmpegUtil ffmpegUtil;
 
     public VideoTaskDomainService(IArchiveService archiveService,
                                   ITaskLogService taskLogService,
                                   ICallbackService callbackService,
-                                  VideoUploadTaskMapper uploadTaskMapper,
+                                  VideoUploadTaskRepository uploadTaskRepository,
                                   FFmpegUtil ffmpegUtil) {
         this.archiveService = archiveService;
         this.taskLogService = taskLogService;
         this.callbackService = callbackService;
-        this.uploadTaskMapper = uploadTaskMapper;
+        this.uploadTaskRepository = uploadTaskRepository;
         this.ffmpegUtil = ffmpegUtil;
     }
 
@@ -67,7 +67,7 @@ public class VideoTaskDomainService {
 
         // 标记任务为处理中状态
         task.markProcessing();
-        uploadTaskMapper.updateById(task);
+        uploadTaskRepository.save(task);
 
         List<Path> tempFiles = new ArrayList<>();
 
@@ -91,7 +91,7 @@ public class VideoTaskDomainService {
 
             // 6. 标记任务完成
             task.markFinished();
-            uploadTaskMapper.updateById(task);
+            uploadTaskRepository.save(task);
 
             taskLogService.info(task.getId(), "视频处理流程完成");
             log.info("视频切片处理完成: taskId={}", task.getId());
@@ -101,7 +101,7 @@ public class VideoTaskDomainService {
             taskLogService.error(task.getId(), "视频处理失败: " + e.getMessage());
 
             task.markError("视频处理失败: " + e.getMessage());
-            uploadTaskMapper.updateById(task);
+            uploadTaskRepository.save(task);
 
             throw e;
         } finally {

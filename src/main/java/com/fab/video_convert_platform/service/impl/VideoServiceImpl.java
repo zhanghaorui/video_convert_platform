@@ -1,14 +1,13 @@
 package com.fab.video_convert_platform.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fab.video_convert_platform.common.BusinessException;
 import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
+import com.fab.video_convert_platform.domain.repository.ProjectConfigRepository;
+import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.fab.video_convert_platform.service.dto.MqVideoMessage;
-import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
-import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import com.fab.video_convert_platform.service.IArchiveService;
 import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.service.ITaskLogService;
@@ -32,21 +31,21 @@ import java.util.UUID;
 @Service
 public class VideoServiceImpl implements IVideoService {
 
-    private final ProjectConfigMapper projectConfigMapper;
-    private final VideoUploadTaskMapper uploadTaskMapper;
+    private final ProjectConfigRepository projectConfigRepository;
+    private final VideoUploadTaskRepository uploadTaskRepository;
     private final IArchiveService archiveService;
     private final NfsService nfsService;
     private final ITaskLogService taskLogService;
     private final LocalSliceTaskExecutor sliceTaskExecutor;
 
-    public VideoServiceImpl(ProjectConfigMapper projectConfigMapper,
-                            VideoUploadTaskMapper uploadTaskMapper,
+    public VideoServiceImpl(ProjectConfigRepository projectConfigRepository,
+                            VideoUploadTaskRepository uploadTaskRepository,
                             IArchiveService archiveService,
                             NfsService nfsService,
                             ITaskLogService taskLogService,
                             LocalSliceTaskExecutor sliceTaskExecutor) {
-        this.projectConfigMapper = projectConfigMapper;
-        this.uploadTaskMapper = uploadTaskMapper;
+        this.projectConfigRepository = projectConfigRepository;
+        this.uploadTaskRepository = uploadTaskRepository;
         this.archiveService = archiveService;
         this.nfsService = nfsService;
         this.taskLogService = taskLogService;
@@ -86,7 +85,7 @@ public class VideoServiceImpl implements IVideoService {
         // 5. 异步处理视频切片（事务外执行）
         processVideoAsync(config, task);
 
-        return uploadTaskMapper.selectById(task.getId());
+        return uploadTaskRepository.findById(task.getId()).orElse(task);
     }
 
     @Override
@@ -189,8 +188,7 @@ public class VideoServiceImpl implements IVideoService {
      * 验证项目配置
      */
     private ProjectConfig validateProject(String projectNo) {
-        ProjectConfig config = projectConfigMapper.selectOne(
-                new QueryWrapper<ProjectConfig>().eq("project_no", projectNo).last("limit 1"));
+        ProjectConfig config = projectConfigRepository.findByProjectNo(projectNo).orElse(null);
         if (config == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND,
                 "Project not found: " + projectNo);
@@ -211,7 +209,7 @@ public class VideoServiceImpl implements IVideoService {
                 tpStage, uuid, versionNo, source, fileName,
                 filePath.toString(), fileSize, md5);
 
-        uploadTaskMapper.insert(task);
+        uploadTaskRepository.save(task);
 
         // 保存归档文件记录
         archiveService.saveOriginal(task.getId(), fileName, filePath.toString(),
@@ -233,7 +231,7 @@ public class VideoServiceImpl implements IVideoService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "任务ID无效");
         }
 
-        VideoUploadTask task = uploadTaskMapper.selectById(taskId);
+        VideoUploadTask task = uploadTaskRepository.findById(taskId).orElse(null);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND,
                 "任务不存在: " + taskId);

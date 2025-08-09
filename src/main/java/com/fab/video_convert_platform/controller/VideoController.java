@@ -1,8 +1,6 @@
 package com.fab.video_convert_platform.controller;
 
 import com.fab.video_convert_platform.common.ApiResponse;
-import com.fab.video_convert_platform.controller.dto.VideoChunkUploadRequest;
-import com.fab.video_convert_platform.controller.dto.VideoUploadRequest;
 import com.fab.video_convert_platform.controller.dto.VideoUploadResponse;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.service.IVideoService;
@@ -12,7 +10,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 
 /**

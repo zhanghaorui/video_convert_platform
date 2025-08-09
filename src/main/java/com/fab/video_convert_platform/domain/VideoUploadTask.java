@@ -63,9 +63,9 @@ public class VideoUploadTask extends BaseEntity {
     private String errorMsg;
 
     /**
-     * 私有构造函数，强制使用工厂方法创建实例
+     * 无参构造函数，供MyBatis-Plus使用
      */
-    private VideoUploadTask() {
+    public VideoUploadTask() {
     }
 
     /**
