@@ -4,6 +4,7 @@ import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Profile;
  */
 @Configuration
 @Profile("!test")
+@ConditionalOnProperty(value = "mq.enabled", havingValue = "true", matchIfMissing = false)
 public class RabbitConfig {
 
     @Bean

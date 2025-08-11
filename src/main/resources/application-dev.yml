@@ -20,6 +20,7 @@ spring:
     connection-timeout: 30000
 
 mq:
+  enabled: false  # 开发环境默认禁用MQ，避免启动依赖
   queues:
     video-task: video.task.queue.dev
 

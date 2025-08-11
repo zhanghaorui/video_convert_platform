@@ -54,47 +54,47 @@ public class LoggingAspect {
         if (!loggingEnabled) {
             return joinPoint.proceed();
         }
-
+        
         String className = joinPoint.getTarget().getClass().getSimpleName();
         String methodName = joinPoint.getSignature().getName();
         String fullMethodName = className + "." + methodName + "()";
-
+        
         // 格式化参数
         String formattedArgs = formatArguments(joinPoint.getArgs());
-
+        
         long start = System.currentTimeMillis();
-
+        
         log.info("[{}] 开始执行 | 参数: {}", fullMethodName, formattedArgs);
-
+        
         try {
             Object result = joinPoint.proceed();
             long cost = System.currentTimeMillis() - start;
-
+            
             // 格式化返回值
             String formattedResult = formatResult(result);
-
+            
             // 性能检查
             if (cost > slowMethodThreshold) {
-                log.warn("[{}] 执行完成 | 耗时: {}ms (超过阈值{}ms) | 返回: {}",
+                log.warn("[{}] 执行完成 | 耗时: {}ms (超过阈值{}ms) | 返回: {}", 
                     fullMethodName, cost, slowMethodThreshold, formattedResult);
             } else {
-                log.info("[{}] 执行完成 | 耗时: {}ms | 返回: {}",
+                log.info("[{}] 执行完成 | 耗时: {}ms | 返回: {}", 
                     fullMethodName, cost, formattedResult);
             }
-
+            
             return result;
         } catch (Throwable ex) {
             long cost = System.currentTimeMillis() - start;
-
+            
             // 根据异常类型使用不同的日志级别
             if (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException) {
-                log.warn("[{}] 执行异常 | 耗时: {}ms | 异常类型: {} | 错误信息: {}",
+                log.warn("[{}] 执行异常 | 耗时: {}ms | 异常类型: {} | 错误信息: {}", 
                     fullMethodName, cost, ex.getClass().getSimpleName(), ex.getMessage());
             } else {
-                log.error("[{}] 执行异常 | 耗时: {}ms | 异常类型: {} | 错误信息: {}",
+                log.error("[{}] 执行异常 | 耗时: {}ms | 异常类型: {} | 错误信息: {}", 
                     fullMethodName, cost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
             }
-
+            
             throw ex;
         }
     }

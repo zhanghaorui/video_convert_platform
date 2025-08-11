@@ -21,11 +21,11 @@ spring:
 
   # 生产环境RabbitMQ配置
   rabbitmq:
-    host: prod-rabbitmq
+    host: 172.18.14.228
     port: 5672
-    username: video
-    password: secure_password
-    virtual-host: /prod
+    username: admin
+    password: admin
+    virtual-host: /video
     connection-timeout: 30000
     publisher-confirms: true        # 生产环境启用确认机制
     publisher-returns: true

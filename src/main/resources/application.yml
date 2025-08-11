@@ -47,7 +47,8 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     cache-enabled: false
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 生产环境建议关闭SQL日志，使用Logback统一管理
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 # 业务队列配置
 mq:
@@ -107,8 +108,8 @@ management:
         enabled: true
     distribution:
       percentiles-histogram:
-        http.server.requests: true
+        "[http.server.requests]": true
       percentiles:
-        http.server.requests: 0.5, 0.75, 0.95, 0.99
+        "[http.server.requests]": 0.5, 0.75, 0.95, 0.99
       sla:
-        http.server.requests: 10ms, 50ms, 100ms, 200ms, 500ms
+        "[http.server.requests]": 10ms, 50ms, 100ms, 200ms, 500ms
