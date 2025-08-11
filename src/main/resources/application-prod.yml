@@ -65,6 +65,7 @@ video:
     ffmpeg:
       timeout: 600000                 # 生产环境更长超时时间
       threads: 4                      # FFmpeg并发线程数
+      use-videotoolbox: true          # Mac服务器启用VideoToolbox加速
 
 business:
   callback:

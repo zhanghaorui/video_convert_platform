@@ -55,6 +55,11 @@ public class VideoProcessingProperties {
         private Integer segmentDuration = 10;
 
         /**
+         * 是否启用VideoToolbox硬件加速
+         */
+        private boolean useVideoToolbox = false;
+
+        /**
          * 质量配置
          */
         private Quality quality = new Quality();
