@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.sleuth.Span;
+import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,18 +30,21 @@ public class LocalSliceTaskExecutor {
     private final VideoTaskDomainService domainService;
     private final ITaskLogService taskLogService;
     private final VideoUploadTaskMapper uploadTaskMapper;
+    private final Tracer tracer;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     public LocalSliceTaskExecutor(BlockingQueue<SliceTask> queue,
                                   ThreadPoolExecutor sliceExecutor,
                                   VideoTaskDomainService domainService,
                                   ITaskLogService taskLogService,
-                                  VideoUploadTaskMapper uploadTaskMapper) {
+                                  VideoUploadTaskMapper uploadTaskMapper,
+                                  Tracer tracer) {
         this.queue = queue;
         this.sliceExecutor = sliceExecutor;
         this.domainService = domainService;
         this.taskLogService = taskLogService;
         this.uploadTaskMapper = uploadTaskMapper;
+        this.tracer = tracer;
     }
 
     /** Start worker threads that take tasks from local queue and process them. */
@@ -88,10 +93,17 @@ public class LocalSliceTaskExecutor {
      * @throws BusinessException when queue is full
      */
     public void submit(ProjectConfig config, VideoUploadTask task) {
-        boolean offered = queue.offer(new SliceTask(config, task));
-        if (!offered) {
-            throw new BusinessException(ErrorCode.RESOURCE_EXHAUSTED,
-                    "slice task queue full");
+        Span span = tracer.nextSpan().name("local_queue_offer").start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            boolean offered = queue.offer(new SliceTask(config, task));
+            span.tag("success", String.valueOf(offered));
+            span.tag("queue_size", String.valueOf(queue.size()));
+            if (!offered) {
+                throw new BusinessException(ErrorCode.RESOURCE_EXHAUSTED,
+                        "slice task queue full");
+            }
+        } finally {
+            span.end();
         }
     }
 }

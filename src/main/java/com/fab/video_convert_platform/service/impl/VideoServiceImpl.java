@@ -13,6 +13,8 @@ import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.service.ITaskLogService;
 import com.fab.video_convert_platform.infra.NfsService;
 import com.fab.video_convert_platform.infra.LocalSliceTaskExecutor;
+import org.springframework.cloud.sleuth.Span;
+import org.springframework.cloud.sleuth.Tracer;
 import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
 import org.springframework.stereotype.Service;
@@ -37,55 +39,67 @@ public class VideoServiceImpl implements IVideoService {
     private final NfsService nfsService;
     private final ITaskLogService taskLogService;
     private final LocalSliceTaskExecutor sliceTaskExecutor;
+    private final Tracer tracer;
 
     public VideoServiceImpl(ProjectConfigRepository projectConfigRepository,
                             VideoUploadTaskRepository uploadTaskRepository,
                             IArchiveService archiveService,
                             NfsService nfsService,
                             ITaskLogService taskLogService,
-                            LocalSliceTaskExecutor sliceTaskExecutor) {
+                            LocalSliceTaskExecutor sliceTaskExecutor,
+                            Tracer tracer) {
         this.projectConfigRepository = projectConfigRepository;
         this.uploadTaskRepository = uploadTaskRepository;
         this.archiveService = archiveService;
         this.nfsService = nfsService;
         this.taskLogService = taskLogService;
         this.sliceTaskExecutor = sliceTaskExecutor;
+        this.tracer = tracer;
     }
 
     @Override
     public VideoUploadTask upload(MultipartFile file, String projectNo,
                                   String patientCode, String tpStage) {
-        // 1. 验证项目配置（不需要事务）
-        ProjectConfig config = validateProject(projectNo);
+        Span span = tracer.nextSpan().name("ingest_receive").start();
+        span.tag("project_no", projectNo);
+        span.tag("source", VideoConstants.SOURCE_CONTROLLER);
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            // 1. 验证项目配置（不需要事务）
+            ProjectConfig config = validateProject(projectNo);
 
-        // 2. 准备任务信息
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        int versionNo = VideoConstants.DEFAULT_VERSION_NO;
-        String fileName = file.getOriginalFilename();
-        Path path = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
-                projectNo, patientCode, tpStage, versionNo, uuid, fileName);
+            // 2. 准备任务信息
+            String uuid = UUID.randomUUID().toString().replace("-", "");
+            int versionNo = VideoConstants.DEFAULT_VERSION_NO;
+            String fileName = file.getOriginalFilename();
+            Path path = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
+                    projectNo, patientCode, tpStage, versionNo, uuid, fileName);
 
-        // 3. 文件存储（不需要事务）
-        VideoUploadTask task;
-        try {
-            nfsService.saveFile(file, path);
-            String md5 = DigestUtil.md5(path);
+            // 3. 文件存储（不需要事务）
+            VideoUploadTask task;
+            try {
+                nfsService.saveFile(file, path);
+                String md5 = DigestUtil.md5(path);
 
-            // 4. 数据库操作（使用事务）
-            task = saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
-                uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
-                path, file.getSize(), md5);
+                // 4. 数据库操作（使用事务）
+                task = saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
+                    uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
+                    path, file.getSize(), md5);
 
-            taskLogService.info(task.getId(), "original file archived");
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.STORE_FILE_FAILED,
-                "Failed to store file: " + e.getMessage());
+                span.tag("task_id", String.valueOf(task.getId()));
+                taskLogService.info(task.getId(), "original file archived");
+            } catch (IOException e) {
+                span.error(e);
+                throw new BusinessException(ErrorCode.STORE_FILE_FAILED,
+                    "Failed to store file: " + e.getMessage());
+            }
+
+            // 5. 异步处理视频切片（事务外执行）
+            processVideoAsync(config, task);
+
+            return uploadTaskRepository.findById(task.getId()).orElse(task);
+        } finally {
+            span.end();
         }
-
-        // 5. 异步处理视频切片（事务外执行）
-        processVideoAsync(config, task);
-
-        return uploadTaskRepository.findById(task.getId()).orElse(task);
     }
 
     @Override
@@ -105,26 +119,34 @@ public class VideoServiceImpl implements IVideoService {
 
             // 3. 检查是否为最后一个分片
             if (chunk != null && chunks != null && chunk + 1 == chunks) {
-                // 合并分片
-                Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
-                        projectNo, patientCode, tpStage, versionNo, uuid, filename);
-                nfsService.mergeChunks(chunkDir, target, chunks);
+                Span span = tracer.nextSpan().name("ingest_receive").start();
+                span.tag("project_no", projectNo);
+                span.tag("source", VideoConstants.SOURCE_CONTROLLER);
+                try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+                    // 合并分片
+                    Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
+                            projectNo, patientCode, tpStage, versionNo, uuid, filename);
+                    nfsService.mergeChunks(chunkDir, target, chunks);
 
-                long size = Files.size(target);
-                String md5 = DigestUtil.md5(target);
+                    long size = Files.size(target);
+                    String md5 = DigestUtil.md5(target);
 
-                // 4. 数据库操作（使用事务）
-                VideoUploadTask task = saveUploadTaskInTransaction(projectNo, patientCode,
-                    tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER,
-                    filename, target, size, md5);
+                    // 4. 数据库操作（使用事务）
+                    VideoUploadTask task = saveUploadTaskInTransaction(projectNo, patientCode,
+                        tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER,
+                        filename, target, size, md5);
 
-                taskLogService.info(task.getId(), "chunks merged and archived");
+                    span.tag("task_id", String.valueOf(task.getId()));
+                    taskLogService.info(task.getId(), "chunks merged and archived");
 
-                // 5. 清理分片目录
-                nfsService.deleteRecursively(chunkDir);
+                    // 5. 清理分片目录
+                    nfsService.deleteRecursively(chunkDir);
 
-                // 6. 异步处理视频切片（事务外执行）
-                processVideoAsync(config, task);
+                    // 6. 异步处理视频切片（事务外执行）
+                    processVideoAsync(config, task);
+                } finally {
+                    span.end();
+                }
             }
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.CHUNK_MERGE_FAILED,
@@ -134,53 +156,62 @@ public class VideoServiceImpl implements IVideoService {
 
     @Override
     public void processMqMessage(MqVideoMessage message) {
-        // 1. 验证项目配置
-        ProjectConfig config = validateProject(message.getProjectNo());
+        Span span = tracer.nextSpan().name("ingest_receive").start();
+        span.tag("project_no", message.getProjectNo());
+        span.tag("source", VideoConstants.SOURCE_MQ);
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            // 1. 验证项目配置
+            ProjectConfig config = validateProject(message.getProjectNo());
 
-        // 2. 验证源文件
-        Path source = Paths.get(message.getFilePath());
-        if (!Files.exists(source)) {
-            throw new BusinessException(ErrorCode.SOURCE_FILE_NOT_FOUND,
-                "Source file not found: " + message.getFilePath());
-        }
-
-        try {
-            // 3. MD5校验
-            if (message.getFileMd5() == null) {
-                throw new BusinessException(ErrorCode.MD5_REQUIRED,
-                    "MD5 is required for MQ message");
+            // 2. 验证源文件
+            Path source = Paths.get(message.getFilePath());
+            if (!Files.exists(source)) {
+                throw new BusinessException(ErrorCode.SOURCE_FILE_NOT_FOUND,
+                    "Source file not found: " + message.getFilePath());
             }
 
-            String md5 = DigestUtil.md5(source);
-            if (!message.getFileMd5().equalsIgnoreCase(md5)) {
-                throw new BusinessException(ErrorCode.MD5_MISMATCH,
-                    "MD5 verification failed");
+            try {
+                // 3. MD5校验
+                if (message.getFileMd5() == null) {
+                    throw new BusinessException(ErrorCode.MD5_REQUIRED,
+                        "MD5 is required for MQ message");
+                }
+
+                String md5 = DigestUtil.md5(source);
+                if (!message.getFileMd5().equalsIgnoreCase(md5)) {
+                    throw new BusinessException(ErrorCode.MD5_MISMATCH,
+                        "MD5 verification failed");
+                }
+
+                // 4. 复制文件到归档目录
+                String fileName = source.getFileName().toString();
+                int versionNo = VideoConstants.DEFAULT_VERSION_NO;
+                String uuid = UUID.randomUUID().toString().replace("-", "");
+                Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
+                        message.getProjectNo(), message.getPatientCode(), message.getTpStage(),
+                        versionNo, uuid, fileName);
+
+                nfsService.copyFile(source, target);
+                long size = Files.size(target);
+
+                // 5. 数据库操作（使用事务）
+                VideoUploadTask task = saveUploadTaskInTransaction(message.getProjectNo(),
+                        message.getPatientCode(), message.getTpStage(), uuid, versionNo,
+                        VideoConstants.SOURCE_MQ, fileName, target, size, md5);
+
+                span.tag("task_id", String.valueOf(task.getId()));
+                taskLogService.info(task.getId(), "mq file archived");
+
+                // 6. 异步处理视频切片（事务外执行）
+                processVideoAsync(config, task);
+
+            } catch (IOException e) {
+                span.error(e);
+                throw new BusinessException(ErrorCode.MQ_PROCESS_FAILED,
+                    "Failed to process MQ file: " + e.getMessage());
             }
-
-            // 4. 复制文件到归档目录
-            String fileName = source.getFileName().toString();
-            int versionNo = VideoConstants.DEFAULT_VERSION_NO;
-            String uuid = UUID.randomUUID().toString().replace("-", "");
-            Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
-                    message.getProjectNo(), message.getPatientCode(), message.getTpStage(),
-                    versionNo, uuid, fileName);
-
-            nfsService.copyFile(source, target);
-            long size = Files.size(target);
-
-            // 5. 数据库操作（使用事务）
-            VideoUploadTask task = saveUploadTaskInTransaction(message.getProjectNo(),
-                    message.getPatientCode(), message.getTpStage(), uuid, versionNo,
-                    VideoConstants.SOURCE_MQ, fileName, target, size, md5);
-
-            taskLogService.info(task.getId(), "mq file archived");
-
-            // 6. 异步处理视频切片（事务外执行）
-            processVideoAsync(config, task);
-
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.MQ_PROCESS_FAILED,
-                "Failed to process MQ file: " + e.getMessage());
+        } finally {
+            span.end();
         }
     }
 
@@ -204,18 +235,26 @@ public class VideoServiceImpl implements IVideoService {
             String tpStage, String uuid, Integer versionNo, String source,
             String fileName, Path filePath, Long fileSize, String md5) {
 
-        // 创建上传任务
-        VideoUploadTask task = VideoUploadTask.createOriginalSaved(projectNo, patientCode,
-                tpStage, uuid, versionNo, source, fileName,
-                filePath.toString(), fileSize, md5);
+        Span span = tracer.nextSpan().name("task_db_upsert").start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            // 创建上传任务
+            VideoUploadTask task = VideoUploadTask.createOriginalSaved(projectNo, patientCode,
+                    tpStage, uuid, versionNo, source, fileName,
+                    filePath.toString(), fileSize, md5);
 
-        uploadTaskRepository.save(task);
+            uploadTaskRepository.save(task);
 
-        // 保存归档文件记录
-        archiveService.saveOriginal(task.getId(), fileName, filePath.toString(),
-                fileSize, md5);
+            span.tag("task_id", String.valueOf(task.getId()));
+            span.tag("status", task.getStatus());
 
-        return task;
+            // 保存归档文件记录
+            archiveService.saveOriginal(task.getId(), fileName, filePath.toString(),
+                    fileSize, md5);
+
+            return task;
+        } finally {
+            span.end();
+        }
     }
 
     /**
