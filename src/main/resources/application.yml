@@ -41,7 +41,7 @@ spring:
       probability: 0.1
 
   zipkin:
-    base-url: http://localhost:9411
+    base-url: http://172.18.14.158:9411
 
 # MyBatis-Plus通用配置
 mybatis-plus:

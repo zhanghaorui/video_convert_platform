@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 9091
   # 生产环境性能优化
   tomcat:
     threads:
@@ -33,12 +33,12 @@ spring:
 # 生产环境MQ队列配置
 mq:
   queues:
-    video-task: video.task.queue.prod
+    video-task: video.task.queue
 
 # 生产环境NFS配置
 nfs:
-  root-path: /data/nfs-storage/prod
-  base-url: https://files.yourcompany.com/videos
+  root-path: /Users/fab/nfs_share/prod
+  base-url: http://172.18.14.240
 
 # 生产环境日志配置 - 只覆盖需要调整的部分
 logging:
@@ -59,7 +59,7 @@ logging:
 # 生产环境性能调优 - 只覆盖需要优化的参数
 video:
   processing:
-    temp-dir: /data/video-processing  # 生产环境高性能存储
+    temp-dir: /Users/fab/nfs_share/video-processing  # 生产环境高性能存储
     chunk-size: 50MB                  # 生产环境增大分片
     max-chunks: 2000                  # 增大分片数限制
     ffmpeg:
