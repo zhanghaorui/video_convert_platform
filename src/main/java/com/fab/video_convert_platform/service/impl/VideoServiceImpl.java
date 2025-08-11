@@ -8,9 +8,9 @@ import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.repository.ProjectConfigRepository;
 import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.fab.video_convert_platform.service.dto.MqVideoMessage;
-import com.fab.video_convert_platform.service.IArchiveService;
 import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.service.ITaskLogService;
+import com.fab.video_convert_platform.service.IUploadTaskTxService;
 import com.fab.video_convert_platform.infra.NfsService;
 import com.fab.video_convert_platform.infra.LocalSliceTaskExecutor;
 import org.springframework.cloud.sleuth.Span;
@@ -18,7 +18,6 @@ import org.springframework.cloud.sleuth.Tracer;
 import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -35,26 +34,26 @@ public class VideoServiceImpl implements IVideoService {
 
     private final ProjectConfigRepository projectConfigRepository;
     private final VideoUploadTaskRepository uploadTaskRepository;
-    private final IArchiveService archiveService;
     private final NfsService nfsService;
     private final ITaskLogService taskLogService;
     private final LocalSliceTaskExecutor sliceTaskExecutor;
     private final Tracer tracer;
+    private final IUploadTaskTxService uploadTaskTxService;
 
     public VideoServiceImpl(ProjectConfigRepository projectConfigRepository,
                             VideoUploadTaskRepository uploadTaskRepository,
-                            IArchiveService archiveService,
                             NfsService nfsService,
                             ITaskLogService taskLogService,
                             LocalSliceTaskExecutor sliceTaskExecutor,
-                            Tracer tracer) {
+                            Tracer tracer,
+                            IUploadTaskTxService uploadTaskTxService) {
         this.projectConfigRepository = projectConfigRepository;
         this.uploadTaskRepository = uploadTaskRepository;
-        this.archiveService = archiveService;
         this.nfsService = nfsService;
         this.taskLogService = taskLogService;
         this.sliceTaskExecutor = sliceTaskExecutor;
         this.tracer = tracer;
+        this.uploadTaskTxService = uploadTaskTxService;
     }
 
     @Override
@@ -81,7 +80,7 @@ public class VideoServiceImpl implements IVideoService {
                 String md5 = DigestUtil.md5(path);
 
                 // 4. 数据库操作（使用事务）
-                task = saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
+                task = uploadTaskTxService.saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
                     uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
                     path, file.getSize(), md5);
 
@@ -132,7 +131,7 @@ public class VideoServiceImpl implements IVideoService {
                     String md5 = DigestUtil.md5(target);
 
                     // 4. 数据库操作（使用事务）
-                    VideoUploadTask task = saveUploadTaskInTransaction(projectNo, patientCode,
+                    VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(projectNo, patientCode,
                         tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER,
                         filename, target, size, md5);
 
@@ -195,7 +194,7 @@ public class VideoServiceImpl implements IVideoService {
                 long size = Files.size(target);
 
                 // 5. 数据库操作（使用事务）
-                VideoUploadTask task = saveUploadTaskInTransaction(message.getProjectNo(),
+                VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(message.getProjectNo(),
                         message.getPatientCode(), message.getTpStage(), uuid, versionNo,
                         VideoConstants.SOURCE_MQ, fileName, target, size, md5);
 
@@ -227,35 +226,6 @@ public class VideoServiceImpl implements IVideoService {
         return config;
     }
 
-    /**
-     * 在事务中保存上传任务和归档记录
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public VideoUploadTask saveUploadTaskInTransaction(String projectNo, String patientCode,
-            String tpStage, String uuid, Integer versionNo, String source,
-            String fileName, Path filePath, Long fileSize, String md5) {
-
-        Span span = tracer.nextSpan().name("task_db_upsert").start();
-        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
-            // 创建上传任务
-            VideoUploadTask task = VideoUploadTask.createOriginalSaved(projectNo, patientCode,
-                    tpStage, uuid, versionNo, source, fileName,
-                    filePath.toString(), fileSize, md5);
-
-            uploadTaskRepository.save(task);
-
-            span.tag("task_id", String.valueOf(task.getId()));
-            span.tag("status", task.getStatus());
-
-            // 保存归档文件记录
-            archiveService.saveOriginal(task.getId(), fileName, filePath.toString(),
-                    fileSize, md5);
-
-            return task;
-        } finally {
-            span.end();
-        }
-    }
 
     /**
      * 异步处理视频切片（事务外执行）
