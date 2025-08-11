@@ -46,7 +46,20 @@ public class UploadTaskTxServiceImpl implements IUploadTaskTxService {
             span.tag("task_id", String.valueOf(task.getId()));
             span.tag("status", task.getStatus());
 
-            archiveService.saveOriginal(task.getId(), fileName, filePath.toString(),
+            String fileName, String filePath, Long fileSize, String md5) {
+
+        Span span = tracer.nextSpan().name("task_db_upsert").start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            VideoUploadTask task = VideoUploadTask.createOriginalSaved(projectNo, patientCode,
+                    tpStage, uuid, versionNo, source, fileName,
+                    filePath, fileSize, md5);
+
+            uploadTaskRepository.save(task);
+
+            span.tag("task_id", String.valueOf(task.getId()));
+            span.tag("status", task.getStatus());
+
+            archiveService.saveOriginal(task.getId(), fileName, filePath,
                     fileSize, md5);
 
             return task;
