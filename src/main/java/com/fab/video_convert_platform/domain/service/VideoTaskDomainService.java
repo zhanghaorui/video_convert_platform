@@ -14,6 +14,8 @@ import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
 import com.fab.video_convert_platform.util.FFmpegUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.sleuth.Span;
+import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -22,6 +24,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 视频任务处理领域服务
@@ -38,17 +42,20 @@ public class VideoTaskDomainService {
     private final ICallbackService callbackService;
     private final VideoUploadTaskRepository uploadTaskRepository;
     private final FFmpegUtil ffmpegUtil;
+    private final Tracer tracer;
 
     public VideoTaskDomainService(IArchiveService archiveService,
                                   ITaskLogService taskLogService,
                                   ICallbackService callbackService,
                                   VideoUploadTaskRepository uploadTaskRepository,
-                                  FFmpegUtil ffmpegUtil) {
+                                  FFmpegUtil ffmpegUtil,
+                                  Tracer tracer) {
         this.archiveService = archiveService;
         this.taskLogService = taskLogService;
         this.callbackService = callbackService;
         this.uploadTaskRepository = uploadTaskRepository;
         this.ffmpegUtil = ffmpegUtil;
+        this.tracer = tracer;
     }
 
     /**
@@ -232,28 +239,39 @@ public class VideoTaskDomainService {
         int targetWidth = quality.getWidth() > 0 ? quality.getWidth() : originalWidth;
         int targetHeight = quality.getHeight() > 0 ? quality.getHeight() : originalHeight;
 
-        taskLogService.info(task.getId(), "开始生成{}质量切片({}x{})", qualityName, targetWidth, targetHeight);
+        Span span = tracer.nextSpan().name("ffmpeg_" + qualityName).start();
+        span.tag("task_id", String.valueOf(task.getId()));
+        span.tag("quality", qualityName);
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            taskLogService.info(task.getId(), "开始生成{}质量切片({}x{})", qualityName, targetWidth, targetHeight);
 
-        // 构建切片输出目录
-        Path sliceDir = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
-                task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
-                task.getVersionNo(), task.getUuid(), qualityName);
+            // 构建切片输出目录
+            Path sliceDir = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
+                    task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
+                    task.getVersionNo(), task.getUuid(), qualityName);
 
-        // 转码到目标分辨率
-        Path transcodedPath = sliceDir.resolve("transcoded_" + qualityName + ".mp4");
-        ffmpegUtil.transcode(input, transcodedPath, targetWidth, targetHeight);
+            // 转码到目标分辨率
+            Path transcodedPath = sliceDir.resolve("transcoded_" + qualityName + ".mp4");
+            try {
+                ffmpegUtil.transcode(input, transcodedPath, targetWidth, targetHeight);
+                // 切片生成M3U8
+                Path m3u8Path = ffmpegUtil.sliceToM3u8(transcodedPath, sliceDir);
 
-        try {
-            // 切片生成M3U8
-            Path m3u8Path = ffmpegUtil.sliceToM3u8(transcodedPath, sliceDir);
+                // 保存切片归档记录
+                saveSliceArchive(task, qualityName, m3u8Path);
 
-            // 保存切片归档记录
-            saveSliceArchive(task, qualityName, m3u8Path);
-
-            taskLogService.info(task.getId(), "{}质量切片生成完成", qualityName);
+                span.tag("exit_code", "0");
+                taskLogService.info(task.getId(), "{}质量切片生成完成", qualityName);
+            } catch (BusinessException e) {
+                span.tag("exit_code", extractExitCode(e.getMessage()));
+                span.error(e);
+                throw e;
+            } finally {
+                // 清理转码临时文件
+                Files.deleteIfExists(transcodedPath);
+            }
         } finally {
-            // 清理转码临时文件
-            Files.deleteIfExists(transcodedPath);
+            span.end();
         }
     }
 
@@ -301,5 +319,10 @@ public class VideoTaskDomainService {
                 log.warn("临时文件清理失败: path={}, error={}", tempFile, e.getMessage());
             }
         }
+    }
+
+    private String extractExitCode(String message) {
+        Matcher m = Pattern.compile("exit code (\\d+)").matcher(message);
+        return m.find() ? m.group(1) : "-1";
     }
 }

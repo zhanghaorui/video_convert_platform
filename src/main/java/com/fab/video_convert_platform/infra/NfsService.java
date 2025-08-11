@@ -1,5 +1,7 @@
 package com.fab.video_convert_platform.infra;
 
+import org.springframework.cloud.sleuth.Span;
+import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +22,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 public class NfsService {
 
     private static final int BUFFER_SIZE = 8192;
+    private final Tracer tracer;
+
+    public NfsService(Tracer tracer) {
+        this.tracer = tracer;
+    }
 
     /**
      * Save uploaded file to target path within NFS.
@@ -43,8 +50,15 @@ public class NfsService {
      * @throws IOException if copy fails
      */
     public void copyFile(Path source, Path target) throws IOException {
-        Files.createDirectories(target.getParent());
-        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+        Span span = tracer.nextSpan().name("nfs_atomic_mv").start();
+        span.tag("from", source.toString());
+        span.tag("to", target.toString());
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            Files.createDirectories(target.getParent());
+            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            span.end();
+        }
     }
 
     /**
