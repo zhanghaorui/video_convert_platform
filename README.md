@@ -13,3 +13,16 @@ mvn -q -Djava.net.preferIPv4Stack=true package
 ```
 
 The packaged JAR can be found under `target/`.
+
+## Hardware Acceleration
+
+macOS servers can leverage Apple's VideoToolbox for faster transcoding. Enable it via configuration:
+
+```yaml
+video:
+  processing:
+    ffmpeg:
+      use-videotoolbox: true
+```
+
+With this flag FFmpeg will use `h264_videotoolbox` when available.

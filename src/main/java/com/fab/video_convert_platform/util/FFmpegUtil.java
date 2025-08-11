@@ -125,10 +125,18 @@ public class FFmpegUtil {
         Files.createDirectories(output.getParent());
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
+        if (properties.getFfmpeg().isUseVideoToolbox()) {
+            cmd.add("-hwaccel");
+            cmd.add("videotoolbox");
+        }
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-c:v");
-        cmd.add("libx264");
+        if (properties.getFfmpeg().isUseVideoToolbox()) {
+            cmd.add("h264_videotoolbox");
+        } else {
+            cmd.add("libx264");
+        }
         cmd.add("-c:a");
         cmd.add("aac");
         cmd.add("-threads");
@@ -231,16 +239,26 @@ public class FFmpegUtil {
         Files.createDirectories(output.getParent());
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
+        if (properties.getFfmpeg().isUseVideoToolbox()) {
+            cmd.add("-hwaccel");
+            cmd.add("videotoolbox");
+        }
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-vf");
         cmd.add("scale=" + width + ":" + height);
         cmd.add("-c:v");
-        cmd.add("libx264");
-        cmd.add("-preset");
-        cmd.add("medium");
-        cmd.add("-crf");
-        cmd.add("23");
+        if (properties.getFfmpeg().isUseVideoToolbox()) {
+            cmd.add("h264_videotoolbox");
+            cmd.add("-b:v");
+            cmd.add("4000k");
+        } else {
+            cmd.add("libx264");
+            cmd.add("-preset");
+            cmd.add("medium");
+            cmd.add("-crf");
+            cmd.add("23");
+        }
         cmd.add("-threads");
         cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
         cmd.add(output.toString());
