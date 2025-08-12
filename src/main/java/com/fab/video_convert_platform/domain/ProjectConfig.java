@@ -66,7 +66,7 @@ public class ProjectConfig extends BaseEntity {
         config.projectName = projectName;
         config.archiveRoot = archiveRoot;
         config.callbackUrl = callbackUrl;
-        config.isActive = true; // 默认激活
+        config.isActive = true;
         
         LocalDateTime now = DateUtil.now();
         config.setCreateTime(now);

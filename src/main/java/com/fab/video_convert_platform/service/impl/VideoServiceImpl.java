@@ -5,8 +5,10 @@ import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
+import com.fab.video_convert_platform.domain.VideoArchiveFile;
 import com.fab.video_convert_platform.domain.repository.ProjectConfigRepository;
 import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
+import com.fab.video_convert_platform.domain.repository.VideoArchiveFileRepository;
 import com.fab.video_convert_platform.service.dto.MqVideoMessage;
 import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.service.ITaskLogService;
@@ -25,6 +27,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
+import java.util.List;
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of video service operations with optimized transaction boundaries.
@@ -34,6 +39,7 @@ public class VideoServiceImpl implements IVideoService {
 
     private final ProjectConfigRepository projectConfigRepository;
     private final VideoUploadTaskRepository uploadTaskRepository;
+    private final VideoArchiveFileRepository archiveFileRepository;
     private final NfsService nfsService;
     private final ITaskLogService taskLogService;
     private final LocalSliceTaskExecutor sliceTaskExecutor;
@@ -42,6 +48,7 @@ public class VideoServiceImpl implements IVideoService {
 
     public VideoServiceImpl(ProjectConfigRepository projectConfigRepository,
                             VideoUploadTaskRepository uploadTaskRepository,
+                            VideoArchiveFileRepository archiveFileRepository,
                             NfsService nfsService,
                             ITaskLogService taskLogService,
                             LocalSliceTaskExecutor sliceTaskExecutor,
@@ -49,6 +56,7 @@ public class VideoServiceImpl implements IVideoService {
                             IUploadTaskTxService uploadTaskTxService) {
         this.projectConfigRepository = projectConfigRepository;
         this.uploadTaskRepository = uploadTaskRepository;
+        this.archiveFileRepository = archiveFileRepository;
         this.nfsService = nfsService;
         this.taskLogService = taskLogService;
         this.sliceTaskExecutor = sliceTaskExecutor;
@@ -247,5 +255,71 @@ public class VideoServiceImpl implements IVideoService {
         }
 
         return task;
+    }
+
+    @Override
+    public List<VideoArchiveFile> getPlayUrlsByTaskId(Long taskId) {
+        if (taskId == null || taskId <= 0) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "任务ID无效");
+        }
+
+        // 验证任务是否存在
+        getTaskById(taskId);
+
+        // 查询该任务的所有M3U8归档文件（这些文件包含播放URL）
+        List<VideoArchiveFile> archiveFiles = archiveFileRepository.findByTaskIdAndFileType(taskId, VideoConstants.FILE_TYPE_M3U8);
+        
+        // 只返回状态为READY的播放文件
+        return archiveFiles.stream()
+                .filter(file -> "READY".equals(file.getStatus()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<VideoArchiveFile> getPlayUrlsByParams(String projectNo, String patientCode, 
+                                                      String tpStage, Integer versionNo, String quality) {
+        if (projectNo == null || projectNo.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "项目编号不能为空");
+        }
+        if (patientCode == null || patientCode.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "受试者编码不能为空");
+        }
+        if (tpStage == null || tpStage.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "访视点不能为空");
+        }
+
+        // 根据业务参数查询上传任务
+        List<VideoUploadTask> tasks = uploadTaskRepository.findByProjectAndPatientAndStage(
+                projectNo, patientCode, tpStage);
+
+        if (tasks.isEmpty()) {
+            return Collections.emptyList(); // 返回空列表而不是抛异常
+        }
+
+        // 如果指定了版本号，过滤任务
+        if (versionNo != null) {
+            tasks = tasks.stream()
+                    .filter(task -> versionNo.equals(task.getVersionNo()))
+                    .collect(Collectors.toList());
+        }
+
+        // 收集所有任务的播放URL
+        List<VideoArchiveFile> allPlayUrls = tasks.stream()
+                .flatMap(task -> {
+                    List<VideoArchiveFile> files = archiveFileRepository.findByTaskIdAndFileType(
+                            task.getId(), VideoConstants.FILE_TYPE_M3U8);
+                    return files.stream();
+                })
+                .filter(file -> "READY".equals(file.getStatus()))
+                .collect(Collectors.toList());
+
+        // 如果指定了质量级别，进一步过滤
+        if (quality != null && !quality.trim().isEmpty()) {
+            allPlayUrls = allPlayUrls.stream()
+                    .filter(file -> quality.equals(file.getQualityLevel()))
+                    .collect(Collectors.toList());
+        }
+
+        return allPlayUrls;
     }
 }

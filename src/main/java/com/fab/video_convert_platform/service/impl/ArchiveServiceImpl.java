@@ -19,7 +19,7 @@ public class ArchiveServiceImpl implements IArchiveService {
     private VideoArchiveFileMapper archiveFileMapper;
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = RuntimeException.class)
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = RuntimeException.class)
     public VideoArchiveFile saveOriginal(Long taskId, String fileName, String filePath,
                                          long fileSize, String fileMd5) {
         VideoArchiveFile archive = VideoArchiveFile.create(
@@ -38,7 +38,7 @@ public class ArchiveServiceImpl implements IArchiveService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = RuntimeException.class)
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = RuntimeException.class)
     public VideoArchiveFile saveM3u8(Long taskId, String qualityLevel, String fileName,
                                      String filePath, String playUrl, long fileSize,
                                      String fileMd5) {
