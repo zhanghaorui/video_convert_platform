@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Web请求日志拦截器
  * 自动为每个请求生成TraceId并记录访问日志
+ * @author zhanghaorui
  */
 @Component
 public class WebLogInterceptor implements HandlerInterceptor {
@@ -36,12 +37,35 @@ public class WebLogInterceptor implements HandlerInterceptor {
         if (!StringUtils.hasText(traceId)) {
             traceId = LogTraceUtil.generateTraceId();
         }
+        
+        // 验证和清理TraceId防止HTTP响应分割攻击
+        traceId = sanitizeTraceId(traceId);
         LogTraceUtil.setTraceId(traceId);
         
-        // 设置响应头中的TraceId
-        response.setHeader(TRACE_ID_HEADER, traceId);
+        // 安全地设置响应头中的TraceId
+        if (isValidTraceId(traceId)) {
+            response.setHeader(TRACE_ID_HEADER, traceId);
+        }
         
         return true;
+    }
+    
+    /**
+     * 验证TraceId格式是否合法
+     */
+    private boolean isValidTraceId(String traceId) {
+        return traceId != null && traceId.matches("^[a-zA-Z0-9\\-_]{1,128}$");
+    }
+    
+    /**
+     * 清理TraceId中的危险字符防止HTTP响应分割
+     */
+    private String sanitizeTraceId(String traceId) {
+        if (traceId == null) {
+            return null;
+        }
+        // 移除换行符等危险字符
+        return traceId.replaceAll("[\\r\\n\\f]", "").trim();
     }
     
     @Override

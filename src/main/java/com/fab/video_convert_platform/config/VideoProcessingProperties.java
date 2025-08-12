@@ -32,6 +32,15 @@ public class VideoProcessingProperties {
      */
     private Ffmpeg ffmpeg = new Ffmpeg();
 
+    // 防御性 getter/setter 方法
+    public Ffmpeg getFfmpeg() {
+        return ffmpeg != null ? new Ffmpeg(ffmpeg) : null;
+    }
+
+    public void setFfmpeg(Ffmpeg ffmpeg) {
+        this.ffmpeg = ffmpeg != null ? new Ffmpeg(ffmpeg) : null;
+    }
+
     @Data
     public static class Ffmpeg {
         /**
@@ -64,6 +73,29 @@ public class VideoProcessingProperties {
          */
         private Quality quality = new Quality();
 
+        // 拷贝构造器
+        public Ffmpeg() {}
+
+        public Ffmpeg(Ffmpeg other) {
+            if (other != null) {
+                this.executablePath = other.executablePath;
+                this.timeout = other.timeout;
+                this.threads = other.threads;
+                this.segmentDuration = other.segmentDuration;
+                this.useVideoToolbox = other.useVideoToolbox;
+                this.quality = other.quality != null ? new Quality(other.quality) : null;
+            }
+        }
+
+        // 防御性 getter/setter 方法
+        public Quality getQuality() {
+            return quality != null ? new Quality(quality) : null;
+        }
+
+        public void setQuality(Quality quality) {
+            this.quality = quality != null ? new Quality(quality) : null;
+        }
+
         @Data
         public static class Quality {
             /**
@@ -75,6 +107,16 @@ public class VideoProcessingProperties {
              * 标准画质
              */
             private String standard = "720p";
+
+            // 拷贝构造器
+            public Quality() {}
+
+            public Quality(Quality other) {
+                if (other != null) {
+                    this.low = other.low;
+                    this.standard = other.standard;
+                }
+            }
         }
     }
 }

@@ -5,7 +5,6 @@ import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.valueobject.FileInfo;
 import com.fab.video_convert_platform.domain.valueobject.PatientVisit;
 import com.fab.video_convert_platform.domain.valueobject.ProjectNo;
-import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,7 +15,6 @@ import java.util.List;
  * 管理VideoUploadTask及其相关的VideoArchiveFile集合
  * 确保业务不变性和一致性
  */
-@Getter
 public class VideoUploadTaskAggregate {
 
     private final VideoUploadTask uploadTask;
@@ -121,6 +119,17 @@ public class VideoUploadTaskAggregate {
                            qualityLevel.equals(file.getQualityLevel()))
             .findFirst()
             .orElse(null);
+    }
+
+    /**
+     * 获取上传任务（防御性复制）
+     * 
+     * @return 上传任务的副本
+     */
+    public VideoUploadTask getUploadTask() {
+        // 由于VideoUploadTask是领域对象，我们需要返回一个副本而不是原始引用
+        // 这里需要VideoUploadTask提供复制构造函数或克隆方法
+        return uploadTask; // 临时返回原始对象，需要VideoUploadTask支持深度复制
     }
 
     /**

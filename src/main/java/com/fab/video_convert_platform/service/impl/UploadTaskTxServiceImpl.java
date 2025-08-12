@@ -17,8 +17,11 @@ import java.nio.file.Path;
 @Service
 public class UploadTaskTxServiceImpl implements IUploadTaskTxService {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoUploadTaskRepository uploadTaskRepository;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final IArchiveService archiveService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
 
     public UploadTaskTxServiceImpl(VideoUploadTaskRepository uploadTaskRepository,

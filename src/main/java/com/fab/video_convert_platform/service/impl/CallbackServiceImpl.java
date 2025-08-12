@@ -15,8 +15,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class CallbackServiceImpl implements ICallbackService {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ITaskLogService taskLogService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final IProjectService projectService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final CallbackInfrastructure callbackInfrastructure;
 
     public CallbackServiceImpl(ITaskLogService taskLogService,

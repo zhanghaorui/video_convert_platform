@@ -36,7 +36,10 @@ public class NfsService {
      * @throws IOException if file cannot be stored
      */
     public void saveFile(MultipartFile file, Path target) throws IOException {
-        Files.createDirectories(target.getParent());
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
         try (InputStream in = file.getInputStream()) {
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
         }
@@ -54,7 +57,10 @@ public class NfsService {
         span.tag("from", source.toString());
         span.tag("to", target.toString());
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
-            Files.createDirectories(target.getParent());
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
         } finally {
             span.end();
@@ -76,7 +82,15 @@ public class NfsService {
      * Merge stored chunks into target file.
      */
     public void mergeChunks(Path dir, Path target, int totalChunks) throws IOException {
-        Files.createDirectories(target.getParent());
+        // 输入参数验证
+        if (target == null) {
+            throw new IllegalArgumentException("目标文件路径不能为空");
+        }
+        
+        // 空指针安全检查
+        if (target.getParent() != null) {
+            Files.createDirectories(target.getParent());
+        }
         try (OutputStream out = Files.newOutputStream(target)) {
             byte[] buffer = new byte[BUFFER_SIZE];
             for (int i = 0; i < totalChunks; i++) {

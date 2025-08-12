@@ -22,6 +22,7 @@ import java.util.Arrays;
 @Component
 public class LoggingAspect {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ObjectMapper mapper;
 
     // 配置参数，可在application.yml中配置

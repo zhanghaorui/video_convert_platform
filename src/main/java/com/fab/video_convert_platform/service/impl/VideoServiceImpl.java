@@ -37,13 +37,21 @@ import java.util.stream.Collectors;
 @Service
 public class VideoServiceImpl implements IVideoService {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ProjectConfigRepository projectConfigRepository;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoUploadTaskRepository uploadTaskRepository;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoArchiveFileRepository archiveFileRepository;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final NfsService nfsService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ITaskLogService taskLogService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final LocalSliceTaskExecutor sliceTaskExecutor;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final IUploadTaskTxService uploadTaskTxService;
 
     public VideoServiceImpl(ProjectConfigRepository projectConfigRepository,

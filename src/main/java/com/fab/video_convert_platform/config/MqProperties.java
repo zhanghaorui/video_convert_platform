@@ -17,11 +17,29 @@ public class MqProperties {
      */
     private Queues queues = new Queues();
 
+    // 防御性 getter/setter 方法
+    public Queues getQueues() {
+        return queues != null ? new Queues(queues) : null;
+    }
+
+    public void setQueues(Queues queues) {
+        this.queues = queues != null ? new Queues(queues) : null;
+    }
+
     @Data
     public static class Queues {
         /**
          * 视频任务队列名
          */
         private String videoTask = "video.task.queue";
+
+        // 拷贝构造器
+        public Queues() {}
+
+        public Queues(Queues other) {
+            if (other != null) {
+                this.videoTask = other.videoTask;
+            }
+        }
     }
 }

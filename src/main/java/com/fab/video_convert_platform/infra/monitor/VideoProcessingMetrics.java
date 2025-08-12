@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class VideoProcessingMetrics {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final MeterRegistry meterRegistry;
 
     // 计数器

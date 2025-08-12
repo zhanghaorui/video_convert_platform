@@ -2,11 +2,14 @@ package com.fab.video_convert_platform.controller;
 
 import com.fab.video_convert_platform.common.ApiResponse;
 import com.fab.video_convert_platform.common.ErrorCode;
+import com.fab.video_convert_platform.controller.dto.ProjectConfigCreateRequest;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.service.IProjectService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 
 /**
@@ -15,12 +18,22 @@ import java.util.List;
 @RestController
 @RequestMapping("/project")
 @RequiredArgsConstructor
+@Validated
 public class ProjectController {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final IProjectService projectService;
 
     @PostMapping
-    public ApiResponse<ProjectConfig> create(@RequestBody ProjectConfig config) {
+    public ApiResponse<ProjectConfig> create(@Valid @RequestBody ProjectConfigCreateRequest request) {
+        // 转换DTO为领域对象，使用默认回调URL
+        ProjectConfig config = ProjectConfig.create(
+            request.getProjectNo(), 
+            request.getProjectName(), 
+            request.getArchiveRoot(),
+            null // 默认无回调URL，后续可通过更新设置
+        );
+        
         return ApiResponse.success(projectService.create(config));
     }
 

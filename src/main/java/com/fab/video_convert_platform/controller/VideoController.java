@@ -30,7 +30,9 @@ import java.util.stream.Collectors;
 @Validated
 public class VideoController {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final IVideoService videoService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final NfsProperties nfsProperties;
 
     /**

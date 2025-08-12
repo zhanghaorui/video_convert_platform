@@ -23,8 +23,11 @@ import java.util.Map;
 @Component
 public class RestCallbackInfrastructure implements CallbackInfrastructure {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final RestTemplate restTemplate;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ITaskLogService taskLogService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
 
     public RestCallbackInfrastructure(RestTemplate restTemplate, ITaskLogService taskLogService, Tracer tracer) {

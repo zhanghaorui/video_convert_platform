@@ -47,6 +47,10 @@ public class FFmpegVideoProcessingInfrastructure implements VideoProcessingInfra
     @Override
     public boolean isAviFormat(Path videoPath) {
         try {
+            // 空指针安全检查
+            if (videoPath == null || videoPath.getFileName() == null) {
+                return false;
+            }
             String fileName = videoPath.getFileName().toString().toLowerCase();
             return fileName.endsWith(".avi");
         } catch (Exception e) {

@@ -23,8 +23,10 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
+@SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
 public class FFmpegUtil {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoProcessingProperties properties;
 
     public FFmpegUtil(VideoProcessingProperties properties) {
@@ -120,9 +122,20 @@ public class FFmpegUtil {
      * Convert AVI video to MP4 using H.264/AAC codecs.
      */
     public void aviToMp4(Path input, Path output) throws IOException, InterruptedException {
+        // 输入参数验证
+        if (input == null) {
+            throw new IllegalArgumentException("输入文件路径不能为空");
+        }
+        if (output == null) {
+            throw new IllegalArgumentException("输出文件路径不能为空");
+        }
+        
         log.info("开始转换AVI到MP4: {} -> {}", input, output);
 
-        Files.createDirectories(output.getParent());
+        // 空指针安全检查
+        if (output.getParent() != null) {
+            Files.createDirectories(output.getParent());
+        }
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
         if (properties.getFfmpeg().isUseVideoToolbox()) {
@@ -234,9 +247,20 @@ public class FFmpegUtil {
      */
     public void transcode(Path input, Path output, int width, int height)
             throws IOException, InterruptedException {
+        // 输入参数验证
+        if (input == null) {
+            throw new IllegalArgumentException("输入文件路径不能为空");
+        }
+        if (output == null) {
+            throw new IllegalArgumentException("输出文件路径不能为空");
+        }
+        
         log.info("开始转码视频: {} -> {} ({}x{})", input, output, width, height);
 
-        Files.createDirectories(output.getParent());
+        // 空指针安全检查
+        if (output.getParent() != null) {
+            Files.createDirectories(output.getParent());
+        }
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
         if (properties.getFfmpeg().isUseVideoToolbox()) {

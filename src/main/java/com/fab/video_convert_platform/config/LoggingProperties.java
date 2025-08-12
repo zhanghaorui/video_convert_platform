@@ -15,8 +15,19 @@ public class LoggingProperties {
      */
     private final Aspect aspect = new Aspect();
     
+    // 防御性 getter 方法
     public Aspect getAspect() {
-        return aspect;
+        return aspect != null ? new Aspect(aspect) : null;
+    }
+
+    // Spring Boot 需要的 setter 方法
+    public void setAspect(Aspect aspect) {
+        if (aspect != null) {
+            this.aspect.setEnabled(aspect.isEnabled());
+            this.aspect.setSlowMethodThreshold(aspect.getSlowMethodThreshold());
+            this.aspect.setLogArgs(aspect.isLogArgs());
+            this.aspect.setLogResult(aspect.isLogResult());
+        }
     }
     
     public static class Aspect {
@@ -39,6 +50,18 @@ public class LoggingProperties {
          * 是否记录方法返回值
          */
         private boolean logResult = false;
+
+        // 拷贝构造器
+        public Aspect() {}
+
+        public Aspect(Aspect other) {
+            if (other != null) {
+                this.enabled = other.enabled;
+                this.slowMethodThreshold = other.slowMethodThreshold;
+                this.logArgs = other.logArgs;
+                this.logResult = other.logResult;
+            }
+        }
         
         public boolean isEnabled() {
             return enabled;

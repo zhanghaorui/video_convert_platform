@@ -25,11 +25,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class LocalSliceTaskExecutor {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final BlockingQueue<SliceTask> queue;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ThreadPoolExecutor sliceExecutor;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoTaskDomainService domainService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ITaskLogService taskLogService;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoUploadTaskRepository taskRepository;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
     private final AtomicBoolean running = new AtomicBoolean(true);
 

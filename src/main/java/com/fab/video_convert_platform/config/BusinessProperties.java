@@ -22,6 +22,23 @@ public class BusinessProperties {
      */
     private Archive archive = new Archive();
 
+    // 防御性 getter/setter 方法
+    public Callback getCallback() {
+        return callback != null ? new Callback(callback) : null;
+    }
+
+    public void setCallback(Callback callback) {
+        this.callback = callback != null ? new Callback(callback) : null;
+    }
+
+    public Archive getArchive() {
+        return archive != null ? new Archive(archive) : null;
+    }
+
+    public void setArchive(Archive archive) {
+        this.archive = archive != null ? new Archive(archive) : null;
+    }
+
     @Data
     public static class Callback {
         /**
@@ -33,6 +50,16 @@ public class BusinessProperties {
          * 超时时间(毫秒)
          */
         private Long timeout = 30000L;
+
+        // 拷贝构造器
+        public Callback() {}
+
+        public Callback(Callback other) {
+            if (other != null) {
+                this.retryTimes = other.retryTimes;
+                this.timeout = other.timeout;
+            }
+        }
     }
 
     @Data
@@ -56,5 +83,17 @@ public class BusinessProperties {
          * 并发处理线程数
          */
         private Integer parallelWorkers = 4;
+
+        // 拷贝构造器
+        public Archive() {}
+
+        public Archive(Archive other) {
+            if (other != null) {
+                this.enableMd5Check = other.enableMd5Check;
+                this.cleanupTempFiles = other.cleanupTempFiles;
+                this.batchSize = other.batchSize;
+                this.parallelWorkers = other.parallelWorkers;
+            }
+        }
     }
 }

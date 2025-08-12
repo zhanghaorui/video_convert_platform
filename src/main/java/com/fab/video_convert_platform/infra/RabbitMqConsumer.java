@@ -22,7 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 @ConditionalOnProperty(value = "mq.enabled", havingValue = "true", matchIfMissing = false)
 public class RabbitMqConsumer {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ObjectMapper objectMapper;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final IVideoService videoService;
 
     public RabbitMqConsumer(ObjectMapper objectMapper, IVideoService videoService) {

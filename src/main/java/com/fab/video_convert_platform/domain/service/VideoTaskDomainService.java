@@ -38,9 +38,13 @@ import java.util.regex.Pattern;
 @Service
 public class VideoTaskDomainService {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoUploadTaskRepository uploadTaskRepository;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final FFmpegUtil ffmpegUtil;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final DomainEventPublisher eventPublisher;
 
     public VideoTaskDomainService(VideoUploadTaskRepository uploadTaskRepository,
@@ -157,6 +161,11 @@ public class VideoTaskDomainService {
      */
     private Path convertAviIfNeeded(VideoUploadTask task, Path input, List<Path> tempFiles)
             throws IOException, InterruptedException {
+
+        // 空指针安全检查
+        if (input == null || input.getFileName() == null) {
+            throw new IllegalArgumentException("输入文件路径不能为空");
+        }
 
         String fileName = input.getFileName().toString().toLowerCase();
         if (!fileName.endsWith(".avi")) {

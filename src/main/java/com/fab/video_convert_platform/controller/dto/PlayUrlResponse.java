@@ -2,6 +2,7 @@ package com.fab.video_convert_platform.controller.dto;
 
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,6 +35,15 @@ public class PlayUrlResponse {
      * 任务总数
      */
     private Integer totalTasks;
+
+    // 防御性 getter/setter 方法
+    public List<PlayUrlTaskInfo> getTasks() {
+        return tasks != null ? new ArrayList<>(tasks) : null;
+    }
+
+    public void setTasks(List<PlayUrlTaskInfo> tasks) {
+        this.tasks = tasks != null ? new ArrayList<>(tasks) : null;
+    }
 
     /**
      * 播放URL总数

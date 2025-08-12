@@ -3,6 +3,7 @@ package com.fab.video_convert_platform.controller.dto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,4 +41,13 @@ public class PlayUrlTaskInfo {
      * 播放URL列表
      */
     private List<PlayUrlInfo> playUrls;
+
+    // 防御性 getter/setter 方法
+    public List<PlayUrlInfo> getPlayUrls() {
+        return playUrls != null ? new ArrayList<>(playUrls) : null;
+    }
+
+    public void setPlayUrls(List<PlayUrlInfo> playUrls) {
+        this.playUrls = playUrls != null ? new ArrayList<>(playUrls) : null;
+    }
 }

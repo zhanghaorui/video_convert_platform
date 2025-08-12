@@ -12,8 +12,10 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
 public class ProjectServiceImpl implements IProjectService {
 
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ProjectConfigRepository projectConfigRepository;
 
     @Override
