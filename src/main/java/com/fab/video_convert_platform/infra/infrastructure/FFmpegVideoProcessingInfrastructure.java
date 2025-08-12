@@ -48,10 +48,14 @@ public class FFmpegVideoProcessingInfrastructure implements VideoProcessingInfra
     public boolean isAviFormat(Path videoPath) {
         try {
             // 空指针安全检查
-            if (videoPath == null || videoPath.getFileName() == null) {
+            if (videoPath == null) {
                 return false;
             }
-            String fileName = videoPath.getFileName().toString().toLowerCase();
+            Path fileNamePath = videoPath.getFileName();
+            if (fileNamePath == null) {
+                return false;
+            }
+            String fileName = fileNamePath.toString().toLowerCase();
             return fileName.endsWith(".avi");
         } catch (Exception e) {
             log.error("Failed to check video format: path={}, error={}", videoPath, e.getMessage());

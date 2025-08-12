@@ -199,7 +199,11 @@ public class VideoServiceImpl implements IVideoService {
                 }
 
                 // 4. 复制文件到归档目录
-                String fileName = source.getFileName().toString();
+                Path fileNamePath = source.getFileName();
+                if (fileNamePath == null) {
+                    throw new BusinessException(ErrorCode.MQ_PROCESS_FAILED, "Invalid source path");
+                }
+                String fileName = fileNamePath.toString();
                 int versionNo = VideoConstants.DEFAULT_VERSION_NO;
                 String uuid = UUID.randomUUID().toString().replace("-", "");
                 Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),

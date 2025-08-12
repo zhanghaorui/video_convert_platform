@@ -133,8 +133,9 @@ public class FFmpegUtil {
         log.info("开始转换AVI到MP4: {} -> {}", input, output);
 
         // 空指针安全检查
-        if (output.getParent() != null) {
-            Files.createDirectories(output.getParent());
+        Path parent = output.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
@@ -258,8 +259,9 @@ public class FFmpegUtil {
         log.info("开始转码视频: {} -> {} ({}x{})", input, output, width, height);
 
         // 空指针安全检查
-        if (output.getParent() != null) {
-            Files.createDirectories(output.getParent());
+        Path parent = output.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
