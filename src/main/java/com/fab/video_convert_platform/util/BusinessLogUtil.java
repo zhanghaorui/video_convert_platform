@@ -42,7 +42,11 @@ public class BusinessLogUtil {
     public static void logBusinessError(String operation, String message, Throwable throwable, Object... params) {
         LogTraceUtil.getOrGenerateTraceId(); // 确保TraceId存在
         String errorMsg = throwable != null ? throwable.getMessage() : "null";
-        BUSINESS_LOGGER.error("[{}] {} - {} - Exception: {}", operation, message, formatParams(params), errorMsg, throwable);
+        if (throwable != null) {
+            BUSINESS_LOGGER.error("[{}] {} - {} - Exception: {}", operation, message, formatParams(params), errorMsg, throwable);
+        } else {
+            BUSINESS_LOGGER.error("[{}] {} - {} - Exception: {}", operation, message, formatParams(params), errorMsg);
+        }
     }
     
     /**
