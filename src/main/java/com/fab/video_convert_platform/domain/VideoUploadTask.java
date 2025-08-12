@@ -1,7 +1,5 @@
 package com.fab.video_convert_platform.domain;
 
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
 import com.fab.video_convert_platform.domain.enums.TaskStatus;
 import com.fab.video_convert_platform.util.DateUtil;
 import lombok.EqualsAndHashCode;
@@ -19,53 +17,67 @@ import java.util.Objects;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = true)
-@TableName("video_upload_task")
 public class VideoUploadTask extends BaseEntity {
 
-    @TableField("project_no")
     private String projectNo;
 
-    @TableField("patient_code")
     private String patientCode;
 
-    @TableField("tp_stage")
     private String tpStage;
 
-    @TableField("uuid")
     private String uuid;
 
-    @TableField("version_no")
     private Integer versionNo;
 
-    @TableField("source")
     private String source;
 
     /**
      * 任务处理状态
      * @see TaskStatus
      */
-    @TableField("status")
     private String status;
 
-    @TableField("main_file_name")
     private String mainFileName;
 
-    @TableField("main_file_path")
     private String mainFilePath;
 
-    @TableField("file_size")
     private Long fileSize;
 
-    @TableField("file_md5")
     private String fileMd5;
 
-    @TableField("error_msg")
     private String errorMsg;
 
     /**
-     * 无参构造函数，供MyBatis-Plus使用
+     * 无参构造函数，供反序列化或重建使用
      */
     public VideoUploadTask() {
+    }
+
+    /**
+     * 从持久化对象重建领域实体
+     */
+    public static VideoUploadTask rebuild(Long id, String projectNo, String patientCode, String tpStage,
+                                          String uuid, Integer versionNo, String source, String status,
+                                          String mainFileName, String mainFilePath, Long fileSize,
+                                          String fileMd5, String errorMsg, LocalDateTime createTime,
+                                          LocalDateTime updateTime) {
+        VideoUploadTask task = new VideoUploadTask();
+        task.setId(id);
+        task.projectNo = projectNo;
+        task.patientCode = patientCode;
+        task.tpStage = tpStage;
+        task.uuid = uuid;
+        task.versionNo = versionNo;
+        task.source = source;
+        task.status = status;
+        task.mainFileName = mainFileName;
+        task.mainFilePath = mainFilePath;
+        task.fileSize = fileSize;
+        task.fileMd5 = fileMd5;
+        task.errorMsg = errorMsg;
+        task.setCreateTime(createTime);
+        task.setUpdateTime(updateTime);
+        return task;
     }
 
     /**
@@ -230,18 +242,5 @@ public class VideoUploadTask extends BaseEntity {
      */
     private boolean canTransitionToProcessing() {
         return TaskStatus.ORIGINAL_SAVED.name().equals(this.status);
-    }
-
-    // 为MyBatis-Plus提供必要的setter方法（仅限框架使用）
-    public void setId(Long id) {
-        super.setId(id);
-    }
-
-    public void setCreateTime(LocalDateTime createTime) {
-        super.setCreateTime(createTime);
-    }
-
-    public void setUpdateTime(LocalDateTime updateTime) {
-        super.setUpdateTime(updateTime);
     }
 }

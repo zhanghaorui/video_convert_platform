@@ -8,6 +8,7 @@ import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.config.NfsProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -238,12 +239,12 @@ public class VideoController {
      * 构建完整的播放URL
      */
     private String buildFullPlayUrl(String relativePath) {
-        if (relativePath == null || relativePath.trim().isEmpty()) {
+        if (!StringUtils.hasText(relativePath)) {
             return null;
         }
-        
+
         String baseUrl = nfsProperties.getBaseUrl();
-        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+        if (!StringUtils.hasText(baseUrl)) {
             return relativePath; // 如果没有配置baseUrl，返回相对路径
         }
         

@@ -226,12 +226,9 @@ public class VideoServiceImpl implements IVideoService {
      * 验证项目配置
      */
     private ProjectConfig validateProject(String projectNo) {
-        ProjectConfig config = projectConfigRepository.findByProjectNo(projectNo).orElse(null);
-        if (config == null) {
-            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND,
-                "Project not found: " + projectNo);
-        }
-        return config;
+        return projectConfigRepository.findByProjectNo(projectNo)
+            .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND,
+                "Project not found: " + projectNo));
     }
 
 

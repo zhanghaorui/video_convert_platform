@@ -3,11 +3,13 @@ package com.fab.video_convert_platform.infra.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
+import com.fab.video_convert_platform.infra.po.VideoUploadTaskPO;
 import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 视频上传任务仓储实现
@@ -24,48 +26,52 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
 
     @Override
     public VideoUploadTask save(VideoUploadTask task) {
-        if (task.getId() == null) {
-            mapper.insert(task);
+        VideoUploadTaskPO po = toPO(task);
+        if (po.getId() == null) {
+            mapper.insert(po);
         } else {
-            mapper.updateById(task);
+            mapper.updateById(po);
         }
-        return mapper.selectById(task.getId());
+        VideoUploadTaskPO persisted = mapper.selectById(po.getId());
+        return toDomain(persisted);
     }
 
     @Override
     public Optional<VideoUploadTask> findById(Long id) {
-        VideoUploadTask task = mapper.selectById(id);
-        return Optional.ofNullable(task);
+        VideoUploadTaskPO po = mapper.selectById(id);
+        return Optional.ofNullable(toDomain(po));
     }
 
     @Override
     public Optional<VideoUploadTask> findByUuid(String uuid) {
-        VideoUploadTask task = mapper.selectOne(
-            new LambdaQueryWrapper<VideoUploadTask>()
-                .eq(VideoUploadTask::getUuid, uuid)
+        VideoUploadTaskPO po = mapper.selectOne(
+            new LambdaQueryWrapper<VideoUploadTaskPO>()
+                .eq(VideoUploadTaskPO::getUuid, uuid)
                 .last("LIMIT 1")
         );
-        return Optional.ofNullable(task);
+        return Optional.ofNullable(toDomain(po));
     }
 
     @Override
     public List<VideoUploadTask> findByProjectNo(String projectNo) {
-        return mapper.selectList(
-            new LambdaQueryWrapper<VideoUploadTask>()
-                .eq(VideoUploadTask::getProjectNo, projectNo)
-                .orderByDesc(VideoUploadTask::getCreateTime)
+        List<VideoUploadTaskPO> list = mapper.selectList(
+            new LambdaQueryWrapper<VideoUploadTaskPO>()
+                .eq(VideoUploadTaskPO::getProjectNo, projectNo)
+                .orderByDesc(VideoUploadTaskPO::getCreateTime)
         );
+        return list.stream().map(this::toDomain).collect(Collectors.toList());
     }
 
     @Override
     public List<VideoUploadTask> findByProjectAndPatientAndStage(String projectNo, String patientCode, String tpStage) {
-        return mapper.selectList(
-            new LambdaQueryWrapper<VideoUploadTask>()
-                .eq(VideoUploadTask::getProjectNo, projectNo)
-                .eq(VideoUploadTask::getPatientCode, patientCode)
-                .eq(VideoUploadTask::getTpStage, tpStage)
-                .orderByDesc(VideoUploadTask::getVersionNo)
+        List<VideoUploadTaskPO> list = mapper.selectList(
+            new LambdaQueryWrapper<VideoUploadTaskPO>()
+                .eq(VideoUploadTaskPO::getProjectNo, projectNo)
+                .eq(VideoUploadTaskPO::getPatientCode, patientCode)
+                .eq(VideoUploadTaskPO::getTpStage, tpStage)
+                .orderByDesc(VideoUploadTaskPO::getVersionNo)
         );
+        return list.stream().map(this::toDomain).collect(Collectors.toList());
     }
 
     @Override
@@ -76,9 +82,55 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
     @Override
     public boolean existsByUuid(String uuid) {
         Long count = mapper.selectCount(
-            new LambdaQueryWrapper<VideoUploadTask>()
-                .eq(VideoUploadTask::getUuid, uuid)
+            new LambdaQueryWrapper<VideoUploadTaskPO>()
+                .eq(VideoUploadTaskPO::getUuid, uuid)
         );
         return count > 0;
+    }
+
+    private VideoUploadTaskPO toPO(VideoUploadTask task) {
+        if (task == null) {
+            return null;
+        }
+        VideoUploadTaskPO po = new VideoUploadTaskPO();
+        po.setId(task.getId());
+        po.setProjectNo(task.getProjectNo());
+        po.setPatientCode(task.getPatientCode());
+        po.setTpStage(task.getTpStage());
+        po.setUuid(task.getUuid());
+        po.setVersionNo(task.getVersionNo());
+        po.setSource(task.getSource());
+        po.setStatus(task.getStatus());
+        po.setMainFileName(task.getMainFileName());
+        po.setMainFilePath(task.getMainFilePath());
+        po.setFileSize(task.getFileSize());
+        po.setFileMd5(task.getFileMd5());
+        po.setErrorMsg(task.getErrorMsg());
+        po.setCreateTime(task.getCreateTime());
+        po.setUpdateTime(task.getUpdateTime());
+        return po;
+    }
+
+    private VideoUploadTask toDomain(VideoUploadTaskPO po) {
+        if (po == null) {
+            return null;
+        }
+        return VideoUploadTask.rebuild(
+            po.getId(),
+            po.getProjectNo(),
+            po.getPatientCode(),
+            po.getTpStage(),
+            po.getUuid(),
+            po.getVersionNo(),
+            po.getSource(),
+            po.getStatus(),
+            po.getMainFileName(),
+            po.getMainFilePath(),
+            po.getFileSize(),
+            po.getFileMd5(),
+            po.getErrorMsg(),
+            po.getCreateTime(),
+            po.getUpdateTime()
+        );
     }
 }
