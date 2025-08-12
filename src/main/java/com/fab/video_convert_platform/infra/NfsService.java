@@ -88,8 +88,9 @@ public class NfsService {
         }
         
         // 空指针安全检查
-        if (target.getParent() != null) {
-            Files.createDirectories(target.getParent());
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         try (OutputStream out = Files.newOutputStream(target)) {
             byte[] buffer = new byte[BUFFER_SIZE];

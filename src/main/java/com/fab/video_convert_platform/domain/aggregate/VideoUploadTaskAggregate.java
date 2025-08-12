@@ -9,6 +9,7 @@ import com.fab.video_convert_platform.domain.valueobject.ProjectNo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * 视频上传任务聚合根
@@ -126,6 +127,7 @@ public class VideoUploadTaskAggregate {
      * 
      * @return 上传任务的副本
      */
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Domain object is intentionally shared")
     public VideoUploadTask getUploadTask() {
         // 由于VideoUploadTask是领域对象，我们需要返回一个副本而不是原始引用
         // 这里需要VideoUploadTask提供复制构造函数或克隆方法

@@ -163,11 +163,15 @@ public class VideoTaskDomainService {
             throws IOException, InterruptedException {
 
         // 空指针安全检查
-        if (input == null || input.getFileName() == null) {
+        if (input == null) {
+            throw new IllegalArgumentException("输入文件路径不能为空");
+        }
+        Path fileNamePath = input.getFileName();
+        if (fileNamePath == null) {
             throw new IllegalArgumentException("输入文件路径不能为空");
         }
 
-        String fileName = input.getFileName().toString().toLowerCase();
+        String fileName = fileNamePath.toString().toLowerCase();
         if (!fileName.endsWith(".avi")) {
             return input;
         }

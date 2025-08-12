@@ -6,6 +6,7 @@ import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.VideoArchiveFile;
 import com.fab.video_convert_platform.service.IVideoService;
 import com.fab.video_convert_platform.config.NfsProperties;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -30,9 +31,9 @@ import java.util.stream.Collectors;
 @Validated
 public class VideoController {
 
-    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Injected service is managed externally")
     private final IVideoService videoService;
-    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Configuration properties are immutable")
     private final NfsProperties nfsProperties;
 
     /**
