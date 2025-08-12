@@ -2,8 +2,8 @@ package com.fab.video_convert_platform.integration;
 
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
+import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.fab.video_convert_platform.mapper.ProjectConfigMapper;
-import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import com.fab.video_convert_platform.service.IVideoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +16,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -40,7 +42,7 @@ class VideoProcessingIntegrationTest {
     private ProjectConfigMapper projectConfigMapper;
 
     @Autowired
-    private VideoUploadTaskMapper uploadTaskMapper;
+    private VideoUploadTaskRepository taskRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -83,7 +85,7 @@ class VideoProcessingIntegrationTest {
         var responseMap = objectMapper.readValue(response, Map.class);
         Long taskId = ((Number) ((Map) responseMap.get("data")).get("taskId")).longValue();
 
-        VideoUploadTask task = uploadTaskMapper.selectById(taskId);
+        VideoUploadTask task = taskRepository.findById(taskId).orElse(null);
         assertThat(task).isNotNull();
         assertThat(task.getProjectNo()).isEqualTo("TEST_PROJECT");
         assertThat(task.getPatientCode()).isEqualTo("PATIENT_IT_001");
@@ -92,7 +94,7 @@ class VideoProcessingIntegrationTest {
         // When - 查询任务状态
         mockMvc.perform(get("/api/v1/videos/tasks/" + taskId))
             .andExpect(status().isOk())
-            .andExpected(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.taskId").value(taskId.intValue()))
             .andExpect(jsonPath("$.data.projectNo").value("TEST_PROJECT"));
     }
@@ -103,7 +105,7 @@ class VideoProcessingIntegrationTest {
         mockMvc.perform(get("/api/v1/monitor/overview"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpected(jsonPath("$.data.activeTasks").exists())
+            .andExpect(jsonPath("$.data.activeTasks").exists())
             .andExpect(jsonPath("$.data.systemStatus").exists());
 
         // When & Then - 性能指标
@@ -111,7 +113,7 @@ class VideoProcessingIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.memory").exists())
-            .andExpected(jsonPath("$.data.activeTasks").exists());
+            .andExpect(jsonPath("$.data.activeTasks").exists());
 
         // When & Then - 项目统计
         mockMvc.perform(get("/api/v1/monitor/project-stats")

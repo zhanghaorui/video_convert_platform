@@ -6,10 +6,11 @@ import com.fab.video_convert_platform.common.VideoConstants;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.enums.VideoQuality;
+import com.fab.video_convert_platform.domain.event.DomainEventPublisher;
+import com.fab.video_convert_platform.domain.event.SliceGeneratedEvent;
+import com.fab.video_convert_platform.domain.event.TaskCallbackEvent;
+import com.fab.video_convert_platform.domain.event.TaskLogEvent;
 import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
-import com.fab.video_convert_platform.service.IArchiveService;
-import com.fab.video_convert_platform.service.ICallbackService;
-import com.fab.video_convert_platform.service.ITaskLogService;
 import com.fab.video_convert_platform.util.ArchivePathUtil;
 import com.fab.video_convert_platform.util.DigestUtil;
 import com.fab.video_convert_platform.util.FFmpegUtil;
@@ -37,25 +38,19 @@ import java.util.regex.Pattern;
 @Service
 public class VideoTaskDomainService {
 
-    private final IArchiveService archiveService;
-    private final ITaskLogService taskLogService;
-    private final ICallbackService callbackService;
     private final VideoUploadTaskRepository uploadTaskRepository;
     private final FFmpegUtil ffmpegUtil;
     private final Tracer tracer;
+    private final DomainEventPublisher eventPublisher;
 
-    public VideoTaskDomainService(IArchiveService archiveService,
-                                  ITaskLogService taskLogService,
-                                  ICallbackService callbackService,
-                                  VideoUploadTaskRepository uploadTaskRepository,
+    public VideoTaskDomainService(VideoUploadTaskRepository uploadTaskRepository,
                                   FFmpegUtil ffmpegUtil,
-                                  Tracer tracer) {
-        this.archiveService = archiveService;
-        this.taskLogService = taskLogService;
-        this.callbackService = callbackService;
+                                  Tracer tracer,
+                                  DomainEventPublisher eventPublisher) {
         this.uploadTaskRepository = uploadTaskRepository;
         this.ffmpegUtil = ffmpegUtil;
         this.tracer = tracer;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -79,7 +74,8 @@ public class VideoTaskDomainService {
         List<Path> tempFiles = new ArrayList<>();
 
         try {
-            taskLogService.info(task.getId(), "开始视频处理流程");
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                "开始视频处理流程"));
 
             // 1. 验证视频文件
             Path inputVideo = validateAndGetInputVideo(task);
@@ -93,19 +89,21 @@ public class VideoTaskDomainService {
             // 4. 生成多质量切片
             generateMultiQualitySlices(config, task, processedVideo, resolution);
 
-            // 5. 执行业务回调
-            executeCallback(task);
+            // 5. 发布业务回调事件
+            eventPublisher.publish(new TaskCallbackEvent(task));
 
             // 6. 标记任务完成
             task.markFinished();
             uploadTaskRepository.save(task);
 
-            taskLogService.info(task.getId(), "视频处理流程完成");
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                "视频处理流程完成"));
             log.info("视频切片处理完成: taskId={}", task.getId());
 
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException | BusinessException e) {
             log.error("视频切片处理失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
-            taskLogService.error(task.getId(), "视频处理失败: " + e.getMessage());
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.ERROR,
+                "视频处理失败: " + e.getMessage()));
 
             task.markError("视频处理失败: " + e.getMessage());
             uploadTaskRepository.save(task);
@@ -128,9 +126,11 @@ public class VideoTaskDomainService {
                 "视频文件不存在: " + task.getMainFilePath());
         }
 
-        taskLogService.info(task.getId(), "开始验证视频文件完整性");
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            "开始验证视频文件完整性"));
         ffmpegUtil.validate(input);
-        taskLogService.info(task.getId(), "视频文件验证通过");
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            "视频文件验证通过"));
 
         return input;
     }
@@ -163,13 +163,15 @@ public class VideoTaskDomainService {
             return input;
         }
 
-        taskLogService.info(task.getId(), "检测到AVI格式，开始转换为MP4");
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            "检测到AVI格式，开始转换为MP4"));
         Path mp4Path = input.resolveSibling("converted_" + System.currentTimeMillis() + ".mp4");
 
         ffmpegUtil.aviToMp4(input, mp4Path);
         tempFiles.add(mp4Path);
 
-        taskLogService.info(task.getId(), "AVI转MP4完成");
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            "AVI转MP4完成"));
         return mp4Path;
     }
 
@@ -187,13 +189,15 @@ public class VideoTaskDomainService {
             return input;
         }
 
-        taskLogService.info(task.getId(), "检测到高分辨率视频({}x{})，开始降级到1080p", width, height);
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            String.format("检测到高分辨率视频(%dx%d)，开始降级到1080p", width, height)));
         Path scaledPath = input.resolveSibling("scaled_" + System.currentTimeMillis() + ".mp4");
 
         ffmpegUtil.transcode(input, scaledPath, 1920, 1080);
         tempFiles.add(scaledPath);
 
-        taskLogService.info(task.getId(), "分辨率降级完成");
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            "分辨率降级完成"));
         return scaledPath;
     }
 
@@ -209,7 +213,8 @@ public class VideoTaskDomainService {
                 "无法获取视频分辨率信息");
         }
 
-        taskLogService.info(task.getId(), "视频分辨率: {}x{}", resolution[0], resolution[1]);
+        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+            String.format("视频分辨率: %dx%d", resolution[0], resolution[1])));
         return resolution;
     }
 
@@ -243,7 +248,8 @@ public class VideoTaskDomainService {
         span.tag("task_id", String.valueOf(task.getId()));
         span.tag("quality", qualityName);
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
-            taskLogService.info(task.getId(), "开始生成{}质量切片({}x{})", qualityName, targetWidth, targetHeight);
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                String.format("开始生成%s质量切片(%dx%d)", qualityName, targetWidth, targetHeight)));
 
             // 构建切片输出目录
             Path sliceDir = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
@@ -257,11 +263,12 @@ public class VideoTaskDomainService {
                 // 切片生成M3U8
                 Path m3u8Path = ffmpegUtil.sliceToM3u8(transcodedPath, sliceDir);
 
-                // 保存切片归档记录
+                // 发布切片生成事件
                 saveSliceArchive(task, qualityName, m3u8Path);
 
                 span.tag("exit_code", "0");
-                taskLogService.info(task.getId(), "{}质量切片生成完成", qualityName);
+                eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                    qualityName + "质量切片生成完成"));
             } catch (BusinessException e) {
                 span.tag("exit_code", extractExitCode(e.getMessage()));
                 span.error(e);
@@ -287,22 +294,8 @@ public class VideoTaskDomainService {
                 task.getPatientCode(), task.getTpStage(), task.getVersionNo(),
                 task.getUuid(), quality);
 
-        archiveService.saveM3u8(task.getId(), quality, VideoConstants.M3U8_NAME,
-                m3u8Path.toString(), playUrl, fileSize, md5);
-    }
-
-    /**
-     * 执行业务回调
-     */
-    private void executeCallback(VideoUploadTask task) {
-        try {
-            callbackService.notify(task);
-            taskLogService.info(task.getId(), "业务回调执行成功");
-        } catch (Exception e) {
-            log.warn("业务回调执行失败: taskId={}, error={}", task.getId(), e.getMessage());
-            taskLogService.error(task.getId(), "业务回调失败: " + e.getMessage());
-            // 回调失败不影响主流程，只记录日志
-        }
+        eventPublisher.publish(new SliceGeneratedEvent(task.getId(), quality,
+                VideoConstants.M3U8_NAME, m3u8Path.toString(), playUrl, fileSize, md5));
     }
 
     /**

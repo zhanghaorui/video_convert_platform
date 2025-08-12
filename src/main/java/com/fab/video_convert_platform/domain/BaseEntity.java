@@ -1,25 +1,32 @@
 package com.fab.video_convert_platform.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import lombok.Data;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 /**
  * Base entity with common identifier and auditing fields.
- * @author zhanghaorui
+ * This class is kept pure from persistence framework annotations
+ * to avoid coupling the domain model with specific ORM implementations.
  */
-@Data
+@Getter
 public abstract class BaseEntity {
 
-    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @TableField("create_time")
     private LocalDateTime createTime;
 
-    @TableField("update_time")
     private LocalDateTime updateTime;
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    public void setUpdateTime(LocalDateTime updateTime) {
+        this.updateTime = updateTime;
+    }
 }

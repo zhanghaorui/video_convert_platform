@@ -4,8 +4,8 @@ import com.fab.video_convert_platform.common.BusinessException;
 import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
+import com.fab.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.fab.video_convert_platform.domain.service.VideoTaskDomainService;
-import com.fab.video_convert_platform.mapper.VideoUploadTaskMapper;
 import com.fab.video_convert_platform.service.ITaskLogService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -29,7 +29,7 @@ public class LocalSliceTaskExecutor {
     private final ThreadPoolExecutor sliceExecutor;
     private final VideoTaskDomainService domainService;
     private final ITaskLogService taskLogService;
-    private final VideoUploadTaskMapper uploadTaskMapper;
+    private final VideoUploadTaskRepository taskRepository;
     private final Tracer tracer;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
@@ -37,13 +37,13 @@ public class LocalSliceTaskExecutor {
                                   ThreadPoolExecutor sliceExecutor,
                                   VideoTaskDomainService domainService,
                                   ITaskLogService taskLogService,
-                                  VideoUploadTaskMapper uploadTaskMapper,
+                                  VideoUploadTaskRepository taskRepository,
                                   Tracer tracer) {
         this.queue = queue;
         this.sliceExecutor = sliceExecutor;
         this.domainService = domainService;
         this.taskLogService = taskLogService;
-        this.uploadTaskMapper = uploadTaskMapper;
+        this.taskRepository = taskRepository;
         this.tracer = tracer;
     }
 
@@ -83,7 +83,7 @@ public class LocalSliceTaskExecutor {
                 task.getId(), sliceTask.getProjectConfig().getProjectNo(), e);
             taskLogService.error(task.getId(), "slice failed: " + e.getMessage());
             task.markError("slice failed: " + e.getMessage());
-            uploadTaskMapper.updateById(task);
+            taskRepository.save(task);
         }
     }
 
