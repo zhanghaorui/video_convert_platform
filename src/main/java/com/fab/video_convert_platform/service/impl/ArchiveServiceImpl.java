@@ -38,7 +38,7 @@ public class ArchiveServiceImpl implements IArchiveService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = RuntimeException.class)
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = RuntimeException.class)
     public VideoArchiveFile saveM3u8(Long taskId, String qualityLevel, String fileName,
                                      String filePath, String playUrl, long fileSize,
                                      String fileMd5) {
