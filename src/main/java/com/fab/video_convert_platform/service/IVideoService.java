@@ -49,6 +49,13 @@ public interface IVideoService {
     void processMqMessage(MqVideoMessage message);
 
     /**
+     * Process video task from MQ message with MQ source
+     *
+     * @param message MQ message payload
+     */
+    void processFromMq(MqVideoMessage message);
+
+    /**
      * Get upload task information by task ID.
      *
      * @param taskId task ID

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Triggers business callbacks after task completion.
+ * @author zhanghaorui
  */
 @Slf4j
 @Component
@@ -22,6 +23,7 @@ public class TaskCallbackEventListener {
     @EventListener
     public void onCallback(TaskCallbackEvent event) {
         try {
+            // event.getTask() 现在返回 VideoUploadTaskView，与接口 notify(VideoUploadTaskView) 匹配
             callbackService.notify(event.getTask());
         } catch (RuntimeException e) {
             log.error("业务回调失败", e);

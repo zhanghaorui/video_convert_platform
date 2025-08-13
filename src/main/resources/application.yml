@@ -2,7 +2,7 @@ spring:
   application:
     name: video-convert-platform
   profiles:
-    active: prod
+    active: test
 
   # 通用Web配置
   servlet:

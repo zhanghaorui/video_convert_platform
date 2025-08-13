@@ -1,5 +1,6 @@
 package com.fab.video_convert_platform.domain;
 
+import com.fab.video_convert_platform.domain.enums.TaskSource;
 import com.fab.video_convert_platform.domain.enums.TaskStatus;
 import com.fab.video_convert_platform.util.DateUtil;
 import lombok.EqualsAndHashCode;
@@ -13,6 +14,7 @@ import java.util.Objects;
 /**
  * 视频上传任务领域实体
  * 遵循DDD设计原则，封装业务逻辑和状态变更
+ * @author zhanghaorui
  */
 @Getter
 @ToString
@@ -189,6 +191,37 @@ public class VideoUploadTask extends BaseEntity {
      */
     public TaskStatus getTaskStatus() {
         return TaskStatus.valueOf(this.status);
+    }
+
+    /**
+     * 获取任务来源枚举
+     */
+    public TaskSource getTaskSource() {
+        return TaskSource.fromValue(this.source);
+    }
+
+    /**
+     * 判断是否为HTTP来源任务
+     */
+    public boolean isHttpSource() {
+        try {
+            return getTaskSource().isHttp();
+        } catch (IllegalArgumentException e) {
+            // 如果无法识别来源，默认为HTTP（向后兼容）
+            return true;
+        }
+    }
+
+    /**
+     * 判断是否为MQ来源任务
+     */
+    public boolean isMqSource() {
+        try {
+            return getTaskSource().isMq();
+        } catch (IllegalArgumentException e) {
+            // 如果无法识别来源，默认不是MQ来源
+            return false;
+        }
     }
 
     /**

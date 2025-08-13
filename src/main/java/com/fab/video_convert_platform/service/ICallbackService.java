@@ -1,6 +1,6 @@
 package com.fab.video_convert_platform.service;
 
-import com.fab.video_convert_platform.domain.VideoUploadTask;
+import com.fab.video_convert_platform.domain.VideoUploadTaskView;
 
 /**
  * Service responsible for notifying external systems when processing completes.
@@ -10,8 +10,7 @@ public interface ICallbackService {
     /**
      * Notify business system that slices are ready for a task.
      *
-     * @param task upload task
+     * @param taskView upload task view
      */
-    void notify(VideoUploadTask task);
+    void notify(VideoUploadTaskView taskView);
 }
-

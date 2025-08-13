@@ -1,6 +1,6 @@
 package com.fab.video_convert_platform.infra.infrastructure;
 
-import com.fab.video_convert_platform.domain.VideoUploadTask;
+import com.fab.video_convert_platform.domain.VideoUploadTaskView;
 import com.fab.video_convert_platform.domain.infrastructure.CallbackInfrastructure;
 import com.fab.video_convert_platform.service.ITaskLogService;
 import lombok.extern.slf4j.Slf4j;
@@ -37,55 +37,55 @@ public class RestCallbackInfrastructure implements CallbackInfrastructure {
     }
 
     @Override
-    public void notifyTaskCompletion(VideoUploadTask task, String callbackUrl) {
-        Map<String, Object> body = buildCallbackBody(task);
+    public void notifyTaskCompletion(VideoUploadTaskView taskView, String callbackUrl) {
+        Map<String, Object> body = buildCallbackBody(taskView);
         body.put("status", "COMPLETED");
 
         Span span = tracer.nextSpan().name("http_callback").start();
-        span.tag("task_id", String.valueOf(task.getId()));
+        span.tag("task_id", String.valueOf(taskView.getId()));
         span.tag("url", callbackUrl);
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             ResponseEntity<Void> resp = restTemplate.postForEntity(callbackUrl, body, Void.class);
             span.tag("http_status", String.valueOf(resp.getStatusCodeValue()));
-            taskLogService.info(task.getId(), "Task completion callback sent successfully");
-            log.info("Task completion callback sent: taskId={}, url={}", task.getId(), callbackUrl);
+            taskLogService.info(taskView.getId(), "Task completion callback sent successfully");
+            log.info("Task completion callback sent: taskId={}, url={}", taskView.getId(), callbackUrl);
         } catch (RestClientException e) {
             if (e instanceof HttpStatusCodeException) {
                 span.tag("http_status", String.valueOf(((HttpStatusCodeException) e).getRawStatusCode()));
             }
             span.error(e);
             String errorMsg = "Task completion callback failed: " + e.getMessage();
-            taskLogService.error(task.getId(), errorMsg);
+            taskLogService.error(taskView.getId(), errorMsg);
             log.error("Task completion callback failed: taskId={}, url={}, error={}",
-                task.getId(), callbackUrl, e.getMessage(), e);
+                taskView.getId(), callbackUrl, e.getMessage(), e);
         } finally {
             span.end();
         }
     }
 
     @Override
-    public void notifyTaskFailure(VideoUploadTask task, String callbackUrl, String errorMessage) {
-        Map<String, Object> body = buildCallbackBody(task);
+    public void notifyTaskFailure(VideoUploadTaskView taskView, String callbackUrl, String errorMessage) {
+        Map<String, Object> body = buildCallbackBody(taskView);
         body.put("status", "FAILED");
         body.put("errorMessage", errorMessage);
 
         Span span = tracer.nextSpan().name("http_callback").start();
-        span.tag("task_id", String.valueOf(task.getId()));
+        span.tag("task_id", String.valueOf(taskView.getId()));
         span.tag("url", callbackUrl);
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             ResponseEntity<Void> resp = restTemplate.postForEntity(callbackUrl, body, Void.class);
             span.tag("http_status", String.valueOf(resp.getStatusCodeValue()));
-            taskLogService.info(task.getId(), "Task failure callback sent successfully");
-            log.info("Task failure callback sent: taskId={}, url={}", task.getId(), callbackUrl);
+            taskLogService.info(taskView.getId(), "Task failure callback sent successfully");
+            log.info("Task failure callback sent: taskId={}, url={}", taskView.getId(), callbackUrl);
         } catch (RestClientException e) {
             if (e instanceof HttpStatusCodeException) {
                 span.tag("http_status", String.valueOf(((HttpStatusCodeException) e).getRawStatusCode()));
             }
             span.error(e);
             String errorMsg = "Task failure callback failed: " + e.getMessage();
-            taskLogService.error(task.getId(), errorMsg);
+            taskLogService.error(taskView.getId(), errorMsg);
             log.error("Task failure callback failed: taskId={}, url={}, error={}",
-                task.getId(), callbackUrl, e.getMessage(), e);
+                taskView.getId(), callbackUrl, e.getMessage(), e);
         } finally {
             span.end();
         }
@@ -94,14 +94,14 @@ public class RestCallbackInfrastructure implements CallbackInfrastructure {
     /**
      * 构建回调请求体
      */
-    private Map<String, Object> buildCallbackBody(VideoUploadTask task) {
+    private Map<String, Object> buildCallbackBody(VideoUploadTaskView taskView) {
         Map<String, Object> body = new HashMap<>();
-        body.put("taskId", task.getId());
-        body.put("uuid", task.getUuid());
-        body.put("projectNo", task.getProjectNo());
-        body.put("patientCode", task.getPatientCode());
-        body.put("tpStage", task.getTpStage());
-        body.put("versionNo", task.getVersionNo());
+        body.put("taskId", taskView.getId());
+        body.put("uuid", taskView.getUuid());
+        body.put("projectNo", taskView.getProjectNo());
+        body.put("patientCode", taskView.getPatientCode());
+        body.put("tpStage", taskView.getTpStage());
+        body.put("versionNo", taskView.getVersionNo());
         return body;
     }
 }

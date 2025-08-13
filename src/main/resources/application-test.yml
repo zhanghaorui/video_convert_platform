@@ -2,23 +2,23 @@ server:
   port: 8081
 
 spring:
-  # 测试环境数据库配置
+  # 生产环境数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://test-db:3306/video_test?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: video_test
-    password: test_password
+    url: jdbc:mysql://172.18.14.224:3306/video_platform?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
+    username: yfsw_test_user
+    password: Test_yfsw_1234
     hikari:
-      maximum-pool-size: 15         # 测试环境中等连接池
-      minimum-idle: 3
+      maximum-pool-size: 50         # 生产环境大连接池
+      minimum-idle: 10
 
   # 测试环境RabbitMQ配置
   rabbitmq:
-    host: test-rabbitmq
+    host: 172.18.14.228
     port: 5672
-    username: video_test
-    password: test_password
-    virtual-host: /test
+    username: admin
+    password: admin
+    virtual-host: /video
     connection-timeout: 30000
 
 # 测试环境MQ队列配置
@@ -29,7 +29,7 @@ mq:
 # 测试环境NFS配置
 nfs:
   root-path: /data/nfs-storage/test
-  base-url: http://test-files.internal:8080/files
+  base-url: https://video.iees.co
 
 # 测试环境日志配置
 logging:
