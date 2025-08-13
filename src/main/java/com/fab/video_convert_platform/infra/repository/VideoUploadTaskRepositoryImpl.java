@@ -29,6 +29,8 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
         VideoUploadTaskPO po = toPO(task);
         if (po.getId() == null) {
             mapper.insert(po);
+            // 将生成的ID设置回原领域实体
+            task.setId(po.getId());
         } else {
             mapper.updateById(po);
         }
