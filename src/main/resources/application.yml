@@ -84,6 +84,7 @@ video:
         low: 480p                    # 低画质
         standard: 720p               # 标准画质
       segment-duration: 10           # HLS切片时长(秒)
+      remove-audio: false            # 是否去除音轨（默认保留音轨）
 
 # 业务配置
 business:

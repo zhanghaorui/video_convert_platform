@@ -69,6 +69,11 @@ public class VideoProcessingProperties {
         private boolean useVideoToolbox = false;
 
         /**
+         * 是否去除音轨（默认保留音轨）
+         */
+        private boolean removeAudio = false;
+
+        /**
          * 质量配置
          */
         private Quality quality = new Quality();

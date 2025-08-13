@@ -99,12 +99,12 @@ public class VideoTaskDomainService {
             // 4. 生成多质量切片
             generateMultiQualitySlices(config, task, processedVideo, resolution);
 
-            // 5. 发布业务回调事件
-            eventPublisher.publish(new TaskCallbackEvent(task));
-
-            // 6. 标记任务完成
+            // 5. 标记任务完成
             task.markFinished();
             uploadTaskRepository.save(task);
+
+            // 6. 发布业务回调事件
+            eventPublisher.publish(new TaskCallbackEvent(task));
 
             eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
                 "视频处理流程完成"));
@@ -115,8 +115,12 @@ public class VideoTaskDomainService {
             eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.ERROR,
                 "视频处理失败: " + e.getMessage()));
 
+            // 标记任务失败
             task.markError("视频处理失败: " + e.getMessage());
             uploadTaskRepository.save(task);
+
+            // 发布失败回调事件
+            eventPublisher.publish(new TaskCallbackEvent(task));
 
             throw e;
         } finally {

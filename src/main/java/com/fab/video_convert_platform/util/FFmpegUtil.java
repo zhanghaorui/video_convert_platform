@@ -225,8 +225,32 @@ public class FFmpegUtil {
 
         String[] parts = result.split("x");
         if (parts.length != 2) {
-            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
-                    "Unexpected ffprobe output format: '" + result + "'");
+            log.warn("FFprobe输出格式异常，尝试修复: '{}'", result);
+            // 处理重复输出的情况，尝试按行分割取第一个有效行
+            String[] lines = result.split("\\r?\\n");
+            String validLine = null;
+            for (String line : lines) {
+                line = line.trim();
+                if (!line.isEmpty() && line.contains("x")) {
+                    validLine = line;
+                    log.info("找到有效分辨率行: '{}'", validLine);
+                    break;
+                }
+            }
+            
+            if (validLine != null) {
+                parts = validLine.split("x");
+                if (parts.length == 2) {
+                    // 重新处理有效行
+                    result = validLine;
+                } else {
+                    throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                            "Unexpected ffprobe output format: '" + result + "'");
+                }
+            } else {
+                throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                        "Unexpected ffprobe output format: '" + result + "'");
+            }
         }
 
         int w, h;
@@ -317,8 +341,7 @@ public class FFmpegUtil {
         cmd.add(input.toString());
         cmd.add("-c:v");
         cmd.add("copy");
-        cmd.add("-c:a");
-        cmd.add("copy");
+        cmd.add("-an");  // 去掉音轨
         cmd.add("-f");
         cmd.add("hls");
         cmd.add("-hls_time");

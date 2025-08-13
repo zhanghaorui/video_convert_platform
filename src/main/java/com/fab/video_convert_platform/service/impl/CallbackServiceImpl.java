@@ -51,11 +51,11 @@ public class CallbackServiceImpl implements ICallbackService {
             return;
         }
         
-        // 根据任务状态发送不同的回调
+        // 只有成功时才回调
         if (taskView.isFinished()) {
             callbackInfrastructure.notifyTaskCompletion(taskView, config.getCallbackUrl());
         } else if (taskView.isFailed()) {
-            callbackInfrastructure.notifyTaskFailure(taskView, config.getCallbackUrl(), taskView.getErrorMsg());
+            taskLogService.info(taskView.getId(), "Task failed, skip callback notification");
         } else {
             taskLogService.error(taskView.getId(), "Task status not suitable for callback: " + taskView.getStatus());
         }

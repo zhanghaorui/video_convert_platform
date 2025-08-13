@@ -64,7 +64,7 @@ public final class ArchivePathUtil {
                 String.valueOf(versionNo), uuid, dir);
     }
 
-        /**
+    /**
      * Build relative play URL for HLS streaming
      * @param projectNo   project number
      * @param patientCode patient code  

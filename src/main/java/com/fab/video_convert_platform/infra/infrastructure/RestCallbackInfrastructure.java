@@ -1,19 +1,20 @@
 package com.fab.video_convert_platform.infra.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fab.video_convert_platform.domain.VideoUploadTaskView;
 import com.fab.video_convert_platform.domain.infrastructure.CallbackInfrastructure;
 import com.fab.video_convert_platform.service.ITaskLogService;
+import com.fab.video_convert_platform.util.ArchivePathUtil;
+import com.fab.video_convert_platform.config.NfsProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 回调服务基础设施实现
@@ -29,79 +30,91 @@ public class RestCallbackInfrastructure implements CallbackInfrastructure {
     private final ITaskLogService taskLogService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
+    private final NfsProperties nfsProperties;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
+    private final ObjectMapper objectMapper;
 
-    public RestCallbackInfrastructure(RestTemplate restTemplate, ITaskLogService taskLogService, Tracer tracer) {
+    public RestCallbackInfrastructure(RestTemplate restTemplate, ITaskLogService taskLogService, 
+                                    Tracer tracer, NfsProperties nfsProperties, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.taskLogService = taskLogService;
         this.tracer = tracer;
+        this.nfsProperties = nfsProperties;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public void notifyTaskCompletion(VideoUploadTaskView taskView, String callbackUrl) {
-        Map<String, Object> body = buildCallbackBody(taskView);
-        body.put("status", "COMPLETED");
+        // 构建视频播放地址
+        String remotePath = ArchivePathUtil.buildPlayUrl(
+            taskView.getProjectNo(),
+            taskView.getPatientCode(), 
+            taskView.getTpStage(),
+            taskView.getVersionNo(),
+            taskView.getUuid(),
+            "low"  // 默认使用低质量版本
+        );
+        
+        String videoPlayPath = buildAbsoluteUrl(remotePath);
+        
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("randomuuid", taskView.getUuid());
+        body.add("videoPlayPath", videoPlayPath);
+
+        log.info("播放地址为: {}", videoPlayPath);
+        log.info("==========回调IEES系统开始==========");
+        log.info("回调IEES系统入参: {}", toJsonString(body));
 
         Span span = tracer.nextSpan().name("http_callback").start();
         span.tag("task_id", String.valueOf(taskView.getId()));
         span.tag("url", callbackUrl);
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
-            ResponseEntity<Void> resp = restTemplate.postForEntity(callbackUrl, body, Void.class);
-            span.tag("http_status", String.valueOf(resp.getStatusCodeValue()));
+            String ieesResult = restTemplate.postForObject(callbackUrl, body, String.class);
+            span.tag("http_status", "200");
             taskLogService.info(taskView.getId(), "Task completion callback sent successfully");
+            log.info("IEES系统回参: {}", toJsonString(ieesResult));
             log.info("Task completion callback sent: taskId={}, url={}", taskView.getId(), callbackUrl);
         } catch (RestClientException e) {
-            if (e instanceof HttpStatusCodeException) {
-                span.tag("http_status", String.valueOf(((HttpStatusCodeException) e).getRawStatusCode()));
-            }
             span.error(e);
-            String errorMsg = "Task completion callback failed: " + e.getMessage();
+            String errorMsg = "回调IEES系统失败: " + e.getMessage();
             taskLogService.error(taskView.getId(), errorMsg);
-            log.error("Task completion callback failed: taskId={}, url={}, error={}",
-                taskView.getId(), callbackUrl, e.getMessage(), e);
+            log.info("回调IEES系统失败: {}", e.getMessage());
         } finally {
             span.end();
+            log.info("==========回调IEES系统结束==========");
         }
     }
 
     @Override
     public void notifyTaskFailure(VideoUploadTaskView taskView, String callbackUrl, String errorMessage) {
-        Map<String, Object> body = buildCallbackBody(taskView);
-        body.put("status", "FAILED");
-        body.put("errorMessage", errorMessage);
-
-        Span span = tracer.nextSpan().name("http_callback").start();
-        span.tag("task_id", String.valueOf(taskView.getId()));
-        span.tag("url", callbackUrl);
-        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
-            ResponseEntity<Void> resp = restTemplate.postForEntity(callbackUrl, body, Void.class);
-            span.tag("http_status", String.valueOf(resp.getStatusCodeValue()));
-            taskLogService.info(taskView.getId(), "Task failure callback sent successfully");
-            log.info("Task failure callback sent: taskId={}, url={}", taskView.getId(), callbackUrl);
-        } catch (RestClientException e) {
-            if (e instanceof HttpStatusCodeException) {
-                span.tag("http_status", String.valueOf(((HttpStatusCodeException) e).getRawStatusCode()));
-            }
-            span.error(e);
-            String errorMsg = "Task failure callback failed: " + e.getMessage();
-            taskLogService.error(taskView.getId(), errorMsg);
-            log.error("Task failure callback failed: taskId={}, url={}, error={}",
-                taskView.getId(), callbackUrl, e.getMessage(), e);
-        } finally {
-            span.end();
-        }
+        // 失败不回调，只记录日志
+        taskLogService.info(taskView.getId(), "Task failed, skip callback notification");
+        log.info("Task failed, skip callback: taskId={}, error={}", taskView.getId(), errorMessage);
     }
 
     /**
-     * 构建回调请求体
+     * 构建完整URL
      */
-    private Map<String, Object> buildCallbackBody(VideoUploadTaskView taskView) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("taskId", taskView.getId());
-        body.put("uuid", taskView.getUuid());
-        body.put("projectNo", taskView.getProjectNo());
-        body.put("patientCode", taskView.getPatientCode());
-        body.put("tpStage", taskView.getTpStage());
-        body.put("versionNo", taskView.getVersionNo());
-        return body;
+    private String buildAbsoluteUrl(String relativePath) {
+        String baseUrl = nfsProperties.getBaseUrl();
+        if (!StringUtils.hasText(baseUrl)) {
+            return relativePath;
+        }
+        
+        String cleanBaseUrl = baseUrl.replaceAll("/$", "");
+        String cleanRelativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
+        return cleanBaseUrl + cleanRelativePath;
+    }
+    
+    /**
+     * 将对象转换为JSON字符串
+     */
+    private String toJsonString(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return String.valueOf(obj);
+        }
     }
 }
