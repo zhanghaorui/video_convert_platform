@@ -29,7 +29,7 @@ mq:
 # 测试环境NFS配置
 nfs:
   root-path: /data/nfs-storage/test
-  base-url: https://video.iees.co
+  base-url: https://video.iees.co/test  # 添加 /test 路径以匹配实际文件存储结构
   url-storage-strategy: ABSOLUTE  # 测试环境使用绝对路径，直接存储完整URL
 
 # 测试环境日志配置
