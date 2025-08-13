@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: 9092
 
 spring:
   # 生产环境数据库配置
