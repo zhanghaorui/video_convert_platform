@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.constraints.NotBlank;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -266,21 +265,10 @@ public class VideoController {
         String cleanBaseUrl = baseUrl.replaceAll("/$", "");
         String cleanRelativePath = storedUrl.startsWith("/") ? storedUrl : "/" + storedUrl;
         
-        // 检查是否存在路径重复（比如项目编号重复）
+        // 直接拼接URL，不进行去重处理
+        // 因为项目编号在路径中重复出现是正常的业务逻辑
         String fullUrl = cleanBaseUrl + cleanRelativePath;
         
-        // 简单的重复检测和修复：如果URL中连续出现相同的路径段，移除重复
-        String[] segments = fullUrl.split("/");
-        List<String> cleanSegments = new ArrayList<>();
-        String lastSegment = null;
-        
-        for (String segment : segments) {
-            if (!segment.equals(lastSegment) || segment.isEmpty()) {
-                cleanSegments.add(segment);
-            }
-            lastSegment = segment;
-        }
-        
-        return String.join("/", cleanSegments);
+        return fullUrl;
     }
 }
