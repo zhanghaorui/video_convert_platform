@@ -47,8 +47,8 @@ video:
   processing:
     temp-dir: /tmp/video-test       # 测试环境临时目录
     ffmpeg:
-      timeout: 60000                # 测试环境较短超时时间
-      use-videotoolbox: false        # 测试环境默认禁用VideoToolbox
+      timeout: 180000               # 测试环境调整为3分钟
+      use-videotoolbox: true         # 测试环境启用VideoToolbox硬件加速
 
 business:
   callback:
