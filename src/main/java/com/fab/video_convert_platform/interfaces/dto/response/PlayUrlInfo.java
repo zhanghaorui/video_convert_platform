@@ -1,4 +1,4 @@
-package com.fab.video_convert_platform.controller.dto;
+package com.fab.video_convert_platform.interfaces.dto.response;
 
 import lombok.Data;
 

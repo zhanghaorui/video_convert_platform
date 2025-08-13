@@ -1,4 +1,4 @@
-package com.fab.video_convert_platform.controller.dto;
+package com.fab.video_convert_platform.interfaces.dto.response;
 
 import lombok.Data;
 
@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 
 /**
  * 视频上传任务响应DTO
+ *
+ * @author zhanghaorui
  */
 @Data
 public class VideoUploadResponse {

@@ -1,8 +1,8 @@
-package com.fab.video_convert_platform.controller;
+package com.fab.video_convert_platform.interfaces.rest;
 
 import com.fab.video_convert_platform.common.ApiResponse;
 import com.fab.video_convert_platform.common.ErrorCode;
-import com.fab.video_convert_platform.controller.dto.ProjectConfigCreateRequest;
+import com.fab.video_convert_platform.interfaces.dto.request.ProjectConfigCreateRequest;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.service.IProjectService;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;

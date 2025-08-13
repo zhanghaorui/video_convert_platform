@@ -42,7 +42,7 @@ public class LoggingAspect {
         this.mapper = mapper;
     }
 
-    @Pointcut("execution(* com.fab.video_convert_platform.controller..*(..))")
+    @Pointcut("execution(* com.fab.video_convert_platform.interfaces.rest..*(..))")
     public void controllerMethods() {
     }
 

@@ -1,20 +1,20 @@
-package com.fab.video_convert_platform.controller.dto;
+package com.fab.video_convert_platform.interfaces.dto.request;
 
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 /**
  * 项目配置创建请求DTO
+ *
+ * @author zhanghaorui
  */
 @Data
 public class ProjectConfigCreateRequest {
 
     @NotBlank(message = "项目编号不能为空")
     @Size(max = 50, message = "项目编号长度不能超过50位")
-    @Pattern(regexp = "^[A-Z0-9_]+$", message = "项目编号只能包含大写字母、数字和下划线")
     private String projectNo;
 
     @NotBlank(message = "项目名称不能为空")

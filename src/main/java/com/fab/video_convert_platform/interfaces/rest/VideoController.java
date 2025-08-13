@@ -1,7 +1,8 @@
-package com.fab.video_convert_platform.controller;
+package com.fab.video_convert_platform.interfaces.rest;
 
 import com.fab.video_convert_platform.common.ApiResponse;
-import com.fab.video_convert_platform.controller.dto.*;
+import com.fab.video_convert_platform.interfaces.dto.request.*;
+import com.fab.video_convert_platform.interfaces.dto.response.*;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.VideoArchiveFile;
 import com.fab.video_convert_platform.service.IVideoService;

@@ -1,4 +1,4 @@
-package com.fab.video_convert_platform.controller.dto;
+package com.fab.video_convert_platform.interfaces.dto.response;
 
 import lombok.Data;
 
@@ -7,6 +7,8 @@ import java.util.List;
 
 /**
  * 播放URL查询响应DTO
+ *
+ * @author zhanghaorui
  */
 @Data
 public class PlayUrlResponse {
@@ -36,6 +38,11 @@ public class PlayUrlResponse {
      */
     private Integer totalTasks;
 
+    /**
+     * 播放URL总数
+     */
+    private Integer totalPlayUrls;
+
     // 防御性 getter/setter 方法
     public List<PlayUrlTaskInfo> getTasks() {
         return tasks != null ? new ArrayList<>(tasks) : null;
@@ -44,9 +51,4 @@ public class PlayUrlResponse {
     public void setTasks(List<PlayUrlTaskInfo> tasks) {
         this.tasks = tasks != null ? new ArrayList<>(tasks) : null;
     }
-
-    /**
-     * 播放URL总数
-     */
-    private Integer totalPlayUrls;
 }

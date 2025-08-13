@@ -1,4 +1,4 @@
-package com.fab.video_convert_platform.controller;
+package com.fab.video_convert_platform.interfaces.rest;
 
 import com.fab.video_convert_platform.common.ApiResponse;
 import com.fab.video_convert_platform.infra.monitor.VideoProcessingMetrics;

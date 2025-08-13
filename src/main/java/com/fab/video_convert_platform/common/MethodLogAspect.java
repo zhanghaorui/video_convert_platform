@@ -44,7 +44,7 @@ public class MethodLogAspect {
     /**
      * 切入Controller层所有方法
      */
-    @Around("execution(* com.fab.video_convert_platform.controller..*.*(..))")
+    @Around("execution(* com.fab.video_convert_platform.interfaces.rest..*.*(..))")
     public Object logControllerMethod(ProceedingJoinPoint joinPoint) throws Throwable {
         if (!loggingProperties.getAspect().isEnabled()) {
             return joinPoint.proceed();
