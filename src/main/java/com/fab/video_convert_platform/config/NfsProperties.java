@@ -21,4 +21,16 @@ public class NfsProperties {
      * 基础URL，用于构建播放链接
      */
     private String baseUrl;
+    
+    /**
+     * URL存储策略
+     * RELATIVE: 存储相对路径（默认）
+     * ABSOLUTE: 存储完整URL
+     */
+    private UrlStorageStrategy urlStorageStrategy = UrlStorageStrategy.RELATIVE;
+    
+    public enum UrlStorageStrategy {
+        RELATIVE,  // 存储相对路径，运行时拼接
+        ABSOLUTE   // 存储完整URL
+    }
 }

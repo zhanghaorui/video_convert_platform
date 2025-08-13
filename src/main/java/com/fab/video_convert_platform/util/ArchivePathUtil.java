@@ -64,13 +64,11 @@ public final class ArchivePathUtil {
                 String.valueOf(versionNo), uuid, dir);
     }
 
-    /**
-     * Build relative play URL for a generated m3u8 file.
-     * The URL always uses forward slashes regardless of OS.
-     *
+        /**
+     * Build relative play URL for HLS streaming
      * @param projectNo   project number
-     * @param patientCode subject identifier
-     * @param tpStage     visit stage
+     * @param patientCode patient code  
+     * @param tpStage     time point stage
      * @param versionNo   version number
      * @param uuid        unique id
      * @param quality     quality level

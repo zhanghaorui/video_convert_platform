@@ -39,6 +39,7 @@ mq:
 nfs:
   root-path: /Users/fab/nfs_share/prod
   base-url: https://video.iees.co
+  url-storage-strategy: ABSOLUTE  # 生产环境使用绝对路径，性能更好
 
 # 生产环境日志配置 - 只覆盖需要调整的部分
 logging:

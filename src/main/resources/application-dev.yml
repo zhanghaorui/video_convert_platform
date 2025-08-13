@@ -27,6 +27,7 @@ mq:
 nfs:
   root-path: /Users/zhanghaorui/dev/nfs-storage
   base-url: http://localhost:8080/files
+  url-storage-strategy: RELATIVE  # 开发环境使用相对路径，便于域名切换
 
 logging:
   level:

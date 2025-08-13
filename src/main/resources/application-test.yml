@@ -30,6 +30,7 @@ mq:
 nfs:
   root-path: /data/nfs-storage/test
   base-url: https://video.iees.co
+  url-storage-strategy: ABSOLUTE  # 测试环境使用绝对路径，直接存储完整URL
 
 # 测试环境日志配置
 logging:

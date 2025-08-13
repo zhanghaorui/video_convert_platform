@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.constraints.NotBlank;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -241,21 +242,45 @@ public class VideoController {
 
     /**
      * 构建完整的播放URL
+     * 支持三种URL模式：
+     * 1. 完整URL（以http/https开头）- 直接返回
+     * 2. 相对路径 - 拼接baseUrl
+     * 3. 绝对路径（以/开头）- 拼接baseUrl
      */
-    private String buildFullPlayUrl(String relativePath) {
-        if (!StringUtils.hasText(relativePath)) {
+    private String buildFullPlayUrl(String storedUrl) {
+        if (!StringUtils.hasText(storedUrl)) {
             return null;
+        }
+
+        // 如果已经是完整URL，直接返回
+        if (storedUrl.startsWith("http://") || storedUrl.startsWith("https://")) {
+            return storedUrl;
         }
 
         String baseUrl = nfsProperties.getBaseUrl();
         if (!StringUtils.hasText(baseUrl)) {
-            return relativePath; // 如果没有配置baseUrl，返回相对路径
+            return storedUrl; // 如果没有配置baseUrl，返回原路径
         }
         
-        // 确保baseUrl不以/结尾，relativePath以/开头
+        // 确保baseUrl不以/结尾，storedUrl以/开头
         String cleanBaseUrl = baseUrl.replaceAll("/$", "");
-        String cleanRelativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
+        String cleanRelativePath = storedUrl.startsWith("/") ? storedUrl : "/" + storedUrl;
         
-        return cleanBaseUrl + cleanRelativePath;
+        // 检查是否存在路径重复（比如项目编号重复）
+        String fullUrl = cleanBaseUrl + cleanRelativePath;
+        
+        // 简单的重复检测和修复：如果URL中连续出现相同的路径段，移除重复
+        String[] segments = fullUrl.split("/");
+        List<String> cleanSegments = new ArrayList<>();
+        String lastSegment = null;
+        
+        for (String segment : segments) {
+            if (!segment.equals(lastSegment) || segment.isEmpty()) {
+                cleanSegments.add(segment);
+            }
+            lastSegment = segment;
+        }
+        
+        return String.join("/", cleanSegments);
     }
 }

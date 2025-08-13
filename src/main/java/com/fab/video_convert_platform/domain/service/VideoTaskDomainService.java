@@ -3,6 +3,7 @@ package com.fab.video_convert_platform.domain.service;
 import com.fab.video_convert_platform.common.BusinessException;
 import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.common.VideoConstants;
+import com.fab.video_convert_platform.config.NfsProperties;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.enums.VideoQuality;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,15 +48,19 @@ public class VideoTaskDomainService {
     private final Tracer tracer;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final DomainEventPublisher eventPublisher;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
+    private final NfsProperties nfsProperties;
 
     public VideoTaskDomainService(VideoUploadTaskRepository uploadTaskRepository,
                                   FFmpegUtil ffmpegUtil,
                                   Tracer tracer,
-                                  DomainEventPublisher eventPublisher) {
+                                  DomainEventPublisher eventPublisher,
+                                  NfsProperties nfsProperties) {
         this.uploadTaskRepository = uploadTaskRepository;
         this.ffmpegUtil = ffmpegUtil;
         this.tracer = tracer;
         this.eventPublisher = eventPublisher;
+        this.nfsProperties = nfsProperties;
     }
 
     /**
@@ -296,19 +302,45 @@ public class VideoTaskDomainService {
     }
 
     /**
-     * 保存切片归档记录
+     * 保存切片归档信息
      */
     private void saveSliceArchive(VideoUploadTask task, String quality, Path m3u8Path)
             throws IOException {
 
         long fileSize = Files.size(m3u8Path);
         String md5 = DigestUtil.md5(m3u8Path);
-        String playUrl = ArchivePathUtil.buildPlayUrl(task.getProjectNo(),
-                task.getPatientCode(), task.getTpStage(), task.getVersionNo(),
-                task.getUuid(), quality);
+        
+        // 根据配置决定存储相对路径还是完整URL
+        String playUrl;
+        if (nfsProperties.getUrlStorageStrategy() == NfsProperties.UrlStorageStrategy.ABSOLUTE) {
+            // 存储完整URL
+            String relativePath = ArchivePathUtil.buildPlayUrl(task.getProjectNo(),
+                    task.getPatientCode(), task.getTpStage(), task.getVersionNo(),
+                    task.getUuid(), quality);
+            playUrl = buildAbsoluteUrl(relativePath);
+        } else {
+            // 存储相对路径（默认）
+            playUrl = ArchivePathUtil.buildPlayUrl(task.getProjectNo(),
+                    task.getPatientCode(), task.getTpStage(), task.getVersionNo(),
+                    task.getUuid(), quality);
+        }
 
         eventPublisher.publish(new SliceGeneratedEvent(task.getId(), quality,
                 VideoConstants.M3U8_NAME, m3u8Path.toString(), playUrl, fileSize, md5));
+    }
+    
+    /**
+     * 构建完整URL
+     */
+    private String buildAbsoluteUrl(String relativePath) {
+        String baseUrl = nfsProperties.getBaseUrl();
+        if (!StringUtils.hasText(baseUrl)) {
+            return relativePath;
+        }
+        
+        String cleanBaseUrl = baseUrl.replaceAll("/$", "");
+        String cleanRelativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
+        return cleanBaseUrl + cleanRelativePath;
     }
 
     /**
