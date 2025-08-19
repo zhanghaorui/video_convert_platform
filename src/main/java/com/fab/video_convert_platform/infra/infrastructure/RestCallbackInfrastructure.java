@@ -53,7 +53,7 @@ public class RestCallbackInfrastructure implements CallbackInfrastructure {
             taskView.getTpStage(),
             taskView.getVersionNo(),
             taskView.getUuid(),
-            "low"  // 默认使用低质量版本
+            "normal"  // 使用标准分辨率版本
         );
         
         String videoPlayPath = buildAbsoluteUrl(remotePath);
