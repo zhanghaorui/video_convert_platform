@@ -279,12 +279,24 @@ public class VideoTaskDomainService {
                     task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
                     task.getVersionNo(), task.getUuid(), qualityName);
 
-            // 转码到目标分辨率
-            Path transcodedPath = sliceDir.resolve("transcoded_" + qualityName + ".mp4");
+            // NORMAL 且无需缩放：直接切片以保留原码率；其他情况按目标分辨率转码后再切片
+            boolean noScaleNeeded = (targetWidth == originalWidth && targetHeight == originalHeight);
+            Path tempTranscoded = null;
             try {
-                ffmpegUtil.transcode(input, transcodedPath, targetWidth, targetHeight);
-                // 切片生成M3U8
-                Path m3u8Path = ffmpegUtil.sliceToM3u8(transcodedPath, sliceDir);
+                Path sourceForSlice;
+                if ("normal".equalsIgnoreCase(qualityName) && noScaleNeeded) {
+                    eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                        "normal质量无需缩放，跳过重编码，直接切片保留原码率"));
+                    sourceForSlice = input;
+                } else {
+                    // 转码到目标分辨率
+                    tempTranscoded = sliceDir.resolve("transcoded_" + qualityName + ".mp4");
+                    ffmpegUtil.transcode(input, tempTranscoded, targetWidth, targetHeight);
+                    sourceForSlice = tempTranscoded;
+                }
+
+                // 切片生成M3U8（-c:v copy -an），码率与sourceForSlice保持一致
+                Path m3u8Path = ffmpegUtil.sliceToM3u8(sourceForSlice, sliceDir);
 
                 // 发布切片生成事件
                 saveSliceArchive(task, qualityName, m3u8Path);
@@ -297,8 +309,10 @@ public class VideoTaskDomainService {
                 span.error(e);
                 throw e;
             } finally {
-                // 清理转码临时文件
-                Files.deleteIfExists(transcodedPath);
+                // 清理转码临时文件（仅在发生过转码时）
+                if (tempTranscoded != null) {
+                    Files.deleteIfExists(tempTranscoded);
+                }
             }
         } finally {
             span.end();
