@@ -1,6 +1,5 @@
 package com.fab.video_convert_platform.domain;
 
-import com.fab.video_convert_platform.domain.enums.TaskSource;
 import com.fab.video_convert_platform.domain.enums.TaskStatus;
 import lombok.Getter;
 
@@ -113,37 +112,6 @@ public final class VideoUploadTaskView {
      */
     public boolean isProcessing() {
         return TaskStatus.PROCESSING.name().equals(this.status);
-    }
-
-    /**
-     * 获取任务来源枚举
-     */
-    public TaskSource getTaskSource() {
-        return TaskSource.fromValue(this.source);
-    }
-
-    /**
-     * 判断是否为HTTP来源任务
-     */
-    public boolean isHttpSource() {
-        try {
-            return getTaskSource().isHttp();
-        } catch (IllegalArgumentException e) {
-            // 如果无法识别来源，默认为HTTP（向后兼容）
-            return true;
-        }
-    }
-
-    /**
-     * 判断是否为MQ来源任务
-     */
-    public boolean isMqSource() {
-        try {
-            return getTaskSource().isMq();
-        } catch (IllegalArgumentException e) {
-            // 如果无法识别来源，默认不是MQ来源
-            return false;
-        }
     }
 
     @Override

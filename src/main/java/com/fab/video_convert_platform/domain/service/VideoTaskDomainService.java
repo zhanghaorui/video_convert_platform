@@ -291,7 +291,17 @@ public class VideoTaskDomainService {
                 } else {
                     // 转码到目标分辨率
                     tempTranscoded = sliceDir.resolve("transcoded_" + qualityName + ".mp4");
-                    ffmpegUtil.transcode(input, tempTranscoded, targetWidth, targetHeight);
+                    // 为硬编提供更合理的码率建议（kbps）；软编仍使用CRF=23
+                    Integer targetKbps = null;
+                    if ("low".equalsIgnoreCase(qualityName)) {
+                        // 360p: ~800kbps 更合理
+                        targetKbps = 800;
+                    } else if ("normal".equalsIgnoreCase(qualityName)) {
+                        // normal 需要缩放的场景（例如原始>1080p被限幅）：给一个较高码率
+                        // 1080p: ~6000kbps 作为基线，可后续做成配置
+                        targetKbps = 6000;
+                    }
+                    ffmpegUtil.transcode(input, tempTranscoded, targetWidth, targetHeight, targetKbps);
                     sourceForSlice = tempTranscoded;
                 }
 

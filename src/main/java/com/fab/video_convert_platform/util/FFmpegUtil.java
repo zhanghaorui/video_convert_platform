@@ -269,8 +269,19 @@ public class FFmpegUtil {
 
     /**
      * Transcode input video into mp4 with specified scale.
+     * Note: For hardware encoder (h264_videotoolbox), a target bitrate will be applied.
      */
     public void transcode(Path input, Path output, int width, int height)
+            throws IOException, InterruptedException {
+        transcode(input, output, width, height, null);
+    }
+
+    /**
+     * Transcode input video with specified scale and optional target bitrate (kbps).
+     * When using VideoToolbox, the provided targetBitrateKbps (if not null) will be used as "-b:v".
+     * For libx264 (software), CRF mode is used and targetBitrateKbps is ignored.
+     */
+    public void transcode(Path input, Path output, int width, int height, Integer targetBitrateKbps)
             throws IOException, InterruptedException {
         // 输入参数验证
         if (input == null) {
@@ -280,7 +291,7 @@ public class FFmpegUtil {
             throw new IllegalArgumentException("输出文件路径不能为空");
         }
         
-        log.info("开始转码视频: {} -> {} ({}x{})", input, output, width, height);
+        log.info("开始转码视频: {} -> {} ({}x{}), targetBitrateKbps={} (仅硬编)", input, output, width, height, targetBitrateKbps);
 
         // 空指针安全检查
         Path parent = output.getParent();
@@ -300,8 +311,10 @@ public class FFmpegUtil {
         cmd.add("-c:v");
         if (properties.getFfmpeg().isUseVideoToolbox()) {
             cmd.add("h264_videotoolbox");
+            // 仅硬编使用固定码率；若未指定则使用保守默认
+            int kbps = targetBitrateKbps != null && targetBitrateKbps > 0 ? targetBitrateKbps : 4000;
             cmd.add("-b:v");
-            cmd.add("4000k");
+            cmd.add(kbps + "k");
         } else {
             cmd.add("libx264");
             cmd.add("-preset");
