@@ -1,5 +1,6 @@
 package com.fab.video_convert_platform.domain;
 
+import com.fab.video_convert_platform.domain.enums.TaskSource;
 import com.fab.video_convert_platform.domain.enums.TaskStatus;
 import lombok.Getter;
 
@@ -35,10 +36,10 @@ public final class VideoUploadTaskView {
      * 私有构造函数，只能通过静态工厂方法创建
      */
     private VideoUploadTaskView(Long id, String projectNo, String patientCode, String tpStage,
-                               String uuid, Integer versionNo, String source, String status,
-                               String mainFileName, String mainFilePath, Long fileSize,
-                               String fileMd5, String errorMsg, LocalDateTime createTime,
-                               LocalDateTime updateTime) {
+                                String uuid, Integer versionNo, String source, String status,
+                                String mainFileName, String mainFilePath, Long fileSize,
+                                String fileMd5, String errorMsg, LocalDateTime createTime,
+                                LocalDateTime updateTime) {
         this.id = id;
         this.projectNo = projectNo;
         this.patientCode = patientCode;
@@ -68,21 +69,21 @@ public final class VideoUploadTaskView {
         }
 
         return new VideoUploadTaskView(
-            task.getId(),
-            task.getProjectNo(),
-            task.getPatientCode(),
-            task.getTpStage(),
-            task.getUuid(),
-            task.getVersionNo(),
-            task.getSource(),
-            task.getStatus(),
-            task.getMainFileName(),
-            task.getMainFilePath(),
-            task.getFileSize(),
-            task.getFileMd5(),
-            task.getErrorMsg(),
-            task.getCreateTime(),
-            task.getUpdateTime()
+                task.getId(),
+                task.getProjectNo(),
+                task.getPatientCode(),
+                task.getTpStage(),
+                task.getUuid(),
+                task.getVersionNo(),
+                task.getSource(),
+                task.getStatus(),
+                task.getMainFileName(),
+                task.getMainFilePath(),
+                task.getFileSize(),
+                task.getFileMd5(),
+                task.getErrorMsg(),
+                task.getCreateTime(),
+                task.getUpdateTime()
         );
     }
 
@@ -114,6 +115,37 @@ public final class VideoUploadTaskView {
         return TaskStatus.PROCESSING.name().equals(this.status);
     }
 
+    /**
+     * 获取任务来源枚举
+     */
+    public TaskSource getTaskSource() {
+        return TaskSource.fromValue(this.source);
+    }
+
+    /**
+     * 判断是否为HTTP来源任务
+     */
+    public boolean isHttpSource() {
+        try {
+            return getTaskSource().isHttp();
+        } catch (IllegalArgumentException e) {
+            // 如果无法识别来源，默认为HTTP（向后兼容）
+            return true;
+        }
+    }
+
+    /**
+     * 判断是否为MQ来源任务
+     */
+    public boolean isMqSource() {
+        try {
+            return getTaskSource().isMq();
+        } catch (IllegalArgumentException e) {
+            // 如果无法识别来源，默认不是MQ来源
+            return false;
+        }
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -124,47 +156,47 @@ public final class VideoUploadTaskView {
         }
         VideoUploadTaskView that = (VideoUploadTaskView) o;
         return Objects.equals(id, that.id) &&
-               Objects.equals(projectNo, that.projectNo) &&
-               Objects.equals(patientCode, that.patientCode) &&
-               Objects.equals(tpStage, that.tpStage) &&
-               Objects.equals(uuid, that.uuid) &&
-               Objects.equals(versionNo, that.versionNo) &&
-               Objects.equals(source, that.source) &&
-               Objects.equals(status, that.status) &&
-               Objects.equals(mainFileName, that.mainFileName) &&
-               Objects.equals(mainFilePath, that.mainFilePath) &&
-               Objects.equals(fileSize, that.fileSize) &&
-               Objects.equals(fileMd5, that.fileMd5) &&
-               Objects.equals(errorMsg, that.errorMsg) &&
-               Objects.equals(createTime, that.createTime) &&
-               Objects.equals(updateTime, that.updateTime);
+                Objects.equals(projectNo, that.projectNo) &&
+                Objects.equals(patientCode, that.patientCode) &&
+                Objects.equals(tpStage, that.tpStage) &&
+                Objects.equals(uuid, that.uuid) &&
+                Objects.equals(versionNo, that.versionNo) &&
+                Objects.equals(source, that.source) &&
+                Objects.equals(status, that.status) &&
+                Objects.equals(mainFileName, that.mainFileName) &&
+                Objects.equals(mainFilePath, that.mainFilePath) &&
+                Objects.equals(fileSize, that.fileSize) &&
+                Objects.equals(fileMd5, that.fileMd5) &&
+                Objects.equals(errorMsg, that.errorMsg) &&
+                Objects.equals(createTime, that.createTime) &&
+                Objects.equals(updateTime, that.updateTime);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, projectNo, patientCode, tpStage, uuid, versionNo, source,
-                           status, mainFileName, mainFilePath, fileSize, fileMd5, errorMsg,
-                           createTime, updateTime);
+                status, mainFileName, mainFilePath, fileSize, fileMd5, errorMsg,
+                createTime, updateTime);
     }
 
     @Override
     public String toString() {
         return "VideoUploadTaskView{" +
-               "id=" + id +
-               ", projectNo='" + projectNo + '\'' +
-               ", patientCode='" + patientCode + '\'' +
-               ", tpStage='" + tpStage + '\'' +
-               ", uuid='" + uuid + '\'' +
-               ", versionNo=" + versionNo +
-               ", source='" + source + '\'' +
-               ", status='" + status + '\'' +
-               ", mainFileName='" + mainFileName + '\'' +
-               ", mainFilePath='" + mainFilePath + '\'' +
-               ", fileSize=" + fileSize +
-               ", fileMd5='" + fileMd5 + '\'' +
-               ", errorMsg='" + errorMsg + '\'' +
-               ", createTime=" + createTime +
-               ", updateTime=" + updateTime +
-               '}';
+                "id=" + id +
+                ", projectNo='" + projectNo + '\'' +
+                ", patientCode='" + patientCode + '\'' +
+                ", tpStage='" + tpStage + '\'' +
+                ", uuid='" + uuid + '\'' +
+                ", versionNo=" + versionNo +
+                ", source='" + source + '\'' +
+                ", status='" + status + '\'' +
+                ", mainFileName='" + mainFileName + '\'' +
+                ", mainFilePath='" + mainFilePath + '\'' +
+                ", fileSize=" + fileSize +
+                ", fileMd5='" + fileMd5 + '\'' +
+                ", errorMsg='" + errorMsg + '\'' +
+                ", createTime=" + createTime +
+                ", updateTime=" + updateTime +
+                '}';
     }
 }
