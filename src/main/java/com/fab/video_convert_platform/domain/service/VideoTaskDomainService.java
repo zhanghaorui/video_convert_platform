@@ -96,8 +96,28 @@ public class VideoTaskDomainService {
             // 3. 获取视频分辨率信息
             int[] resolution = getVideoResolution(task, processedVideo);
 
-            // 4. 生成多质量切片
-            generateMultiQualitySlices(config, task, processedVideo, resolution);
+            // 新增：获取原始（预处理后）视频码率，供自适应码率策略使用
+            int originalBitrateKbps = 0;
+            try {
+                Integer br = ffmpegUtil.getVideoBitrateKbps(processedVideo);
+                if (br != null && br > 0) {
+                    originalBitrateKbps = br;
+                    eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                        "探测到原始码率: " + originalBitrateKbps + " kbps"));
+                } else {
+                    // WARN改为INFO
+                    eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                        "未能探测到原始码率，后续使用默认兜底策略"));
+                }
+            } catch (Exception e) {
+                log.warn("获取原始码率失败: {}", e.getMessage());
+                // WARN改为INFO
+                eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                    "获取原始码率失败，使用默认兜底: " + e.getMessage()));
+            }
+
+            // 4. 生成多质量切片（传入原始码率）
+            generateMultiQualitySlices(config, task, processedVideo, resolution, originalBitrateKbps);
 
             // 5. 标记任务完成
             task.markFinished();
@@ -245,14 +265,14 @@ public class VideoTaskDomainService {
      * 生成多质量切片
      */
     private void generateMultiQualitySlices(ProjectConfig config, VideoUploadTask task,
-                                          Path input, int[] originalResolution)
+                                          Path input, int[] originalResolution, int originalBitrateKbps)
             throws IOException, InterruptedException {
 
         int originalWidth = originalResolution[0];
         int originalHeight = originalResolution[1];
 
         for (VideoQuality quality : VideoQuality.values()) {
-            generateQualitySlice(config, task, input, quality, originalWidth, originalHeight);
+            generateQualitySlice(config, task, input, quality, originalWidth, originalHeight, originalBitrateKbps);
         }
     }
 
@@ -260,7 +280,7 @@ public class VideoTaskDomainService {
      * 生成指定质量的切片
      */
     private void generateQualitySlice(ProjectConfig config, VideoUploadTask task, Path input,
-                                    VideoQuality quality, int originalWidth, int originalHeight)
+                                    VideoQuality quality, int originalWidth, int originalHeight, int originalBitrateKbps)
             throws IOException, InterruptedException {
 
         String qualityName = quality.getName();
@@ -279,27 +299,26 @@ public class VideoTaskDomainService {
                     task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
                     task.getVersionNo(), task.getUuid(), qualityName);
 
-            // NORMAL 且无需缩放：直接切片以保留原码率；其他情况按目标分辨率转码后再切片
-            boolean noScaleNeeded = (targetWidth == originalWidth && targetHeight == originalHeight);
-            Path tempTranscoded = null;
+            Path tempTranscoded = null; // 提前声明使finally可见
             try {
                 Path sourceForSlice;
+                boolean noScaleNeeded = (targetWidth == originalWidth && targetHeight == originalHeight);
                 if ("normal".equalsIgnoreCase(qualityName) && noScaleNeeded) {
                     eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
                         "normal质量无需缩放，跳过重编码，直接切片保留原码率"));
                     sourceForSlice = input;
                 } else {
-                    // 转码到目标分辨率
-                    tempTranscoded = sliceDir.resolve("transcoded_" + qualityName + ".mp4");
-                    // 为硬编提供更合理的码率建议（kbps）；软编仍使用CRF=23
+                    tempTranscoded = ArchivePathUtil.buildSlicePath(config.getArchiveRoot(),
+                            task.getProjectNo(), task.getPatientCode(), task.getTpStage(),
+                            task.getVersionNo(), task.getUuid(), qualityName).resolve("transcoded_" + qualityName + ".mp4");
                     Integer targetKbps = null;
                     if ("low".equalsIgnoreCase(qualityName)) {
-                        // 360p: ~800kbps 更合理
                         targetKbps = 800;
-                    } else if ("normal".equalsIgnoreCase(qualityName)) {
-                        // normal 需要缩放的场景（例如原始>1080p被限幅）：给一个较高码率
-                        // 1080p: ~6000kbps 作为基线，可后续做成配置
-                        targetKbps = 6000;
+                    } else if ("normal".equalsIgnoreCase(qualityName) && !noScaleNeeded) {
+                        targetKbps = computeAdaptiveBitrate(originalBitrateKbps, originalWidth, originalHeight, targetWidth, targetHeight);
+                        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                            String.format("normal缩放触发自适应码率: %d kbps (原始=%d kbps, %dx%d -> %dx%d)",
+                                targetKbps, originalBitrateKbps, originalWidth, originalHeight, targetWidth, targetHeight)));
                     }
                     ffmpegUtil.transcode(input, tempTranscoded, targetWidth, targetHeight, targetKbps);
                     sourceForSlice = tempTranscoded;
@@ -319,9 +338,8 @@ public class VideoTaskDomainService {
                 span.error(e);
                 throw e;
             } finally {
-                // 清理转码临时文件（仅在发生过转码时）
                 if (tempTranscoded != null) {
-                    Files.deleteIfExists(tempTranscoded);
+                    try { Files.deleteIfExists(tempTranscoded); } catch (IOException ignore) { }
                 }
             }
         } finally {
@@ -390,5 +408,38 @@ public class VideoTaskDomainService {
     private String extractExitCode(String message) {
         Matcher m = Pattern.compile("exit code (\\d+)").matcher(message);
         return m.find() ? m.group(1) : "-1";
+    }
+
+    /**
+     * 自适应码率计算：按像素比例缩放 + 阈值夹紧。
+     */
+    private int computeAdaptiveBitrate(int originalBitrateKbps, int originalWidth, int originalHeight,
+                                       int targetWidth, int targetHeight) {
+        if (originalWidth <= 0 || originalHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) {
+            return 6000; // 兜底
+        }
+        double pixelRatio = (targetWidth * 1.0 * targetHeight) / (originalWidth * 1.0 * originalHeight);
+        pixelRatio = Math.min(Math.max(pixelRatio, 0.05), 1.0); // 防止极端
+
+        int base;
+        if (originalBitrateKbps > 0) {
+            base = originalBitrateKbps;
+        } else {
+            // 基于原始高度的经验兜底
+            if (originalHeight >= 1080) base = 8000; else if (originalHeight >= 720) base = 5000; else if (originalHeight >= 480) base = 3000; else base = 1500;
+        }
+        double raw = base * pixelRatio * 1.05; // 轻微冗余
+
+        int min;
+        int max;
+        if (targetHeight >= 1080) { min = 6000; max = 15000; }
+        else if (targetHeight >= 720) { min = 4000; max = 8000; }
+        else if (targetHeight >= 480) { min = 2500; max = 5000; }
+        else { min = 1000; max = 2500; }
+
+        int adaptive = (int)Math.round(raw);
+        if (adaptive < min) adaptive = min;
+        if (adaptive > max) adaptive = max;
+        return adaptive;
     }
 }

@@ -132,6 +132,26 @@ public class FFmpegUtil {
         
         log.info("开始转换AVI到MP4: {} -> {}", input, output);
 
+        // 获取原始视频码率（kbps），若失败则使用默认兜底
+        Integer originBitrateKbps = null;
+        try {
+            originBitrateKbps = getVideoBitrateKbps(input);
+            if (originBitrateKbps != null && originBitrateKbps <= 0) {
+                originBitrateKbps = null;
+            }
+        } catch (Exception e) {
+            log.warn("获取原始码率失败，使用默认策略: {}", e.getMessage());
+        }
+        // 合理兜底：1080p 场景给 8000kbps；避免过低导致质量下降
+        int fallbackBitrateKbps = 8000;
+        int targetBitrateKbps = originBitrateKbps != null ? originBitrateKbps : fallbackBitrateKbps;
+        // 限制一个上限防止异常文件导致极端高码率（例如错误元数据）
+        if (targetBitrateKbps > 30000) { // 30 Mbps 上限
+            log.info("原始码率{}kbps超出上限，截断为30Mbps", targetBitrateKbps);
+            targetBitrateKbps = 30000;
+        }
+        log.info("AVI转MP4采用目标视频码率: {} kbps (原始={} kbps, fallback={})", targetBitrateKbps, originBitrateKbps, fallbackBitrateKbps);
+
         // 空指针安全检查
         Path parent = output.getParent();
         if (parent != null) {
@@ -148,18 +168,43 @@ public class FFmpegUtil {
         cmd.add("-c:v");
         if (properties.getFfmpeg().isUseVideoToolbox()) {
             cmd.add("h264_videotoolbox");
+            cmd.add("-b:v");
+            cmd.add(targetBitrateKbps + "k");
+            cmd.add("-maxrate");
+            cmd.add(targetBitrateKbps + "k");
+            cmd.add("-bufsize");
+            cmd.add((targetBitrateKbps * 2) + "k");
         } else {
             cmd.add("libx264");
+            // 为保持原始感知质量，使用显式码率 + 高配置
+            cmd.add("-preset");
+            cmd.add("medium");
+            cmd.add("-profile:v");
+            cmd.add("high");
+            cmd.add("-level");
+            cmd.add("4.1");
+            cmd.add("-pix_fmt");
+            cmd.add("yuv420p");
+            cmd.add("-b:v");
+            cmd.add(targetBitrateKbps + "k");
+            cmd.add("-maxrate");
+            cmd.add(targetBitrateKbps + "k");
+            cmd.add("-bufsize");
+            cmd.add((targetBitrateKbps * 2) + "k");
         }
+        // 音频：保持或转成 AAC；如果原文件无音频不会报错
         cmd.add("-c:a");
         cmd.add("aac");
         cmd.add("-threads");
         cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
+        // 头部优化以便 HLS 快速起播
+        cmd.add("-movflags");
+        cmd.add("+faststart");
         cmd.add(output.toString());
 
         try {
             runCommand(cmd);
-            log.info("AVI转MP4完成: {}", output);
+            log.info("AVI转MP4完成: {} (目标码率={}kbps)", output, targetBitrateKbps);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
                 throw new BusinessException(ErrorCode.TRANSCODE_FAILED,
@@ -291,7 +336,7 @@ public class FFmpegUtil {
             throw new IllegalArgumentException("输出文件路径不能为空");
         }
         
-        log.info("开始转码视频: {} -> {} ({}x{}), targetBitrateKbps={} (仅硬编)", input, output, width, height, targetBitrateKbps);
+        log.info("开始转码视频: {} -> {} ({}x{}), targetBitrateKbps={} (仅硬编或软编显式码率)", input, output, width, height, targetBitrateKbps);
 
         // 空指针安全检查
         Path parent = output.getParent();
@@ -311,16 +356,31 @@ public class FFmpegUtil {
         cmd.add("-c:v");
         if (properties.getFfmpeg().isUseVideoToolbox()) {
             cmd.add("h264_videotoolbox");
-            // 仅硬编使用固定码率；若未指定则使用保守默认
-            int kbps = targetBitrateKbps != null && targetBitrateKbps > 0 ? targetBitrateKbps : 4000;
+            int kbps = (targetBitrateKbps != null && targetBitrateKbps > 0) ? targetBitrateKbps : 4000;
             cmd.add("-b:v");
             cmd.add(kbps + "k");
         } else {
             cmd.add("libx264");
             cmd.add("-preset");
             cmd.add("medium");
-            cmd.add("-crf");
-            cmd.add("23");
+            cmd.add("-profile:v");
+            cmd.add("high");
+            cmd.add("-level");
+            cmd.add("4.1");
+            cmd.add("-pix_fmt");
+            cmd.add("yuv420p");
+            if (targetBitrateKbps != null && targetBitrateKbps > 0) {
+                int kbps = targetBitrateKbps;
+                cmd.add("-b:v");
+                cmd.add(kbps + "k");
+                cmd.add("-maxrate");
+                cmd.add(kbps + "k");
+                cmd.add("-bufsize");
+                cmd.add((kbps * 2) + "k");
+            } else {
+                cmd.add("-crf");
+                cmd.add("23");
+            }
         }
         cmd.add("-threads");
         cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
@@ -380,6 +440,73 @@ public class FFmpegUtil {
                         "Failed to slice video to M3U8: " + e.getMessage());
             }
             throw e;
+        }
+    }
+
+    /**
+     * 获取视频流原始码率（kbps）。
+     * 优先取视频流 bit_rate；若不可用，再尝试取容器格式 bit_rate。
+     */
+    public Integer getVideoBitrateKbps(Path input) throws IOException, InterruptedException {
+        if (input == null) {
+            return null;
+        }
+        // 先取视频流码率
+        Integer streamKbps = probeBitrate(input, true);
+        if (streamKbps != null && streamKbps > 0) {
+            return streamKbps;
+        }
+        // 退化到容器总码率
+        return probeBitrate(input, false);
+    }
+
+    private Integer probeBitrate(Path input, boolean stream) throws IOException, InterruptedException {
+        List<String> cmd = new ArrayList<>();
+        cmd.add("ffprobe");
+        cmd.add("-v");
+        cmd.add("error");
+        if (stream) {
+            cmd.add("-select_streams");
+            cmd.add("v:0");
+            cmd.add("-show_entries");
+            cmd.add("stream=bit_rate");
+        } else {
+            cmd.add("-show_entries");
+            cmd.add("format=bit_rate");
+        }
+        cmd.add("-of");
+        cmd.add("default=noprint_wrappers=1:nokey=1");
+        cmd.add(input.toString());
+
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+        boolean finished = process.waitFor(8000, java.util.concurrent.TimeUnit.MILLISECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+            return null;
+        }
+        try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+            String line = br.readLine();
+            if (line == null) {
+                return null;
+            }
+            line = line.trim();
+            if (line.isEmpty() || line.equalsIgnoreCase("N/A")) {
+                return null;
+            }
+            try {
+                long bps = Long.parseLong(line);
+                if (bps <= 0) {
+                    return null;
+                }
+                int kbps = (int) Math.round(bps / 1000.0);
+                log.info("探测到{}码率: {} kbps ({} bps)", stream ? "视频流" : "容器", kbps, bps);
+                return kbps;
+            } catch (NumberFormatException e) {
+                log.warn("解析码率失败: {}", line);
+                return null;
+            }
         }
     }
 }
