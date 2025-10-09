@@ -259,7 +259,8 @@ public class VideoUploadTask extends BaseEntity {
         if (!StringUtils.hasText(patientCode)) {
             throw new IllegalArgumentException("受试者编码不能为空");
         }
-        if (!StringUtils.hasText(tpStage)) {
+        // MQ来源时允许tpStage为空，其他来源时必填
+        if (!"mq".equalsIgnoreCase(source) && !StringUtils.hasText(tpStage)) {
             throw new IllegalArgumentException("访视点不能为空");
         }
         if (!StringUtils.hasText(uuid)) {

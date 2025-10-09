@@ -38,6 +38,17 @@ public class PatientVisit {
     }
 
     /**
+     * 创建患者访视信息值对象（允许访视点为空，适用于MQ来源）
+     * @param patientCode 患者编码
+     * @param tpStage 访视点（可空）
+     * @return 患者访视信息值对象
+     */
+    public static PatientVisit ofNullable(String patientCode, String tpStage) {
+        validatePatientVisitNullable(patientCode, tpStage);
+        return new PatientVisit(patientCode, tpStage);
+    }
+
+    /**
      * 验证患者访视信息
      */
     private static void validatePatientVisit(String patientCode, String tpStage) {
@@ -48,7 +59,25 @@ public class PatientVisit {
         if (Objects.isNull(tpStage) || tpStage.trim().isEmpty()) {
             throw new IllegalArgumentException("访视点不能为空");
         }
-        
+        validatePatientCodeFormat(patientCode);
+        validateTpStageFormat(tpStage);
+    }
+
+    /**
+     * 验证患者访视信息（允许访视点为空）
+     */
+    private static void validatePatientVisitNullable(String patientCode, String tpStage) {
+        if (Objects.isNull(patientCode) || patientCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("患者编码不能为空");
+        }
+        validatePatientCodeFormat(patientCode);
+        validateTpStageFormat(tpStage); // 这个方法内部会处理null的情况
+    }
+
+    /**
+     * 验证患者编码格式
+     */
+    private static void validatePatientCodeFormat(String patientCode) {
         // 患者编码格式验证：4-20位字母数字组合
         String trimmedPatientCode = patientCode.trim();
         if (trimmedPatientCode.length() < 4 || trimmedPatientCode.length() > 20) {
@@ -58,11 +87,17 @@ public class PatientVisit {
         if (!trimmedPatientCode.matches("^[A-Za-z0-9_-]+$")) {
             throw new IllegalArgumentException("患者编码只能包含字母、数字、下划线和中划线");
         }
-        
-        // 访视点格式验证：1-50位
-        String trimmedTpStage = tpStage.trim();
-        if (trimmedTpStage.length() > 50) {
-            throw new IllegalArgumentException("访视点长度不能超过50位");
+    }
+
+    /**
+     * 验证访视点格式
+     */
+    private static void validateTpStageFormat(String tpStage) {
+        if (tpStage != null && !tpStage.trim().isEmpty()) {
+            String trimmedTpStage = tpStage.trim();
+            if (trimmedTpStage.length() > 50) {
+                throw new IllegalArgumentException("访视点长度不能超过50位");
+            }
         }
     }
 

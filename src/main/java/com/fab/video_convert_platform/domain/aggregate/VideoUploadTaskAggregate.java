@@ -224,6 +224,11 @@ public class VideoUploadTaskAggregate {
      * @return 患者访视信息值对象
      */
     public PatientVisit getPatientVisit() {
-        return PatientVisit.of(uploadTask.getPatientCode(), uploadTask.getTpStage());
+        // 如果是MQ来源，允许tpStage为空
+        if (uploadTask.isMqSource()) {
+            return PatientVisit.ofNullable(uploadTask.getPatientCode(), uploadTask.getTpStage());
+        } else {
+            return PatientVisit.of(uploadTask.getPatientCode(), uploadTask.getTpStage());
+        }
     }
 }
