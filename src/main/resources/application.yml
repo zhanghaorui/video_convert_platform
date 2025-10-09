@@ -122,3 +122,11 @@ management:
         "[http.server.requests]": 0.5, 0.75, 0.95, 0.99
       sla:
         "[http.server.requests]": 10ms, 50ms, 100ms, 200ms, 500ms
+
+maintenance:
+  cleanup:
+    enabled: true               # 是否启用孤立分片与无任务原始文件清理
+    cron: "0 0/30 * * * ?"       # 默认每30分钟执行一次
+    orphan-chunk-ttl-minutes: 60 # 分片目录在最后修改时间超过此分钟数且未被删除则判定为孤立
+    orphan-original-ttl-hours: 24 # 原始文件超过此小时数且无对应任务则删除
+    dry-run: true               # 先以dry-run方式运行，确认日志无误后再关闭
