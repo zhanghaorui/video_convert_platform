@@ -42,6 +42,7 @@ CREATE TABLE video_upload_task (
     project_no VARCHAR(64) NOT NULL COMMENT '项目编号',
     patient_code VARCHAR(64) NOT NULL COMMENT '受试者编码',
     tp_stage VARCHAR(64) NOT NULL COMMENT '访视点/时间点',
+    visit VARCHAR(128) DEFAULT NULL COMMENT '访视描述(新增)',
     uuid VARCHAR(64) NOT NULL COMMENT '唯一标识符',
     version_no INT NOT NULL DEFAULT 1 COMMENT '版本号（初始1，业务多批次递增）',
     source VARCHAR(32) NOT NULL COMMENT '来源（CONTROLLER/MQ/其他）',
