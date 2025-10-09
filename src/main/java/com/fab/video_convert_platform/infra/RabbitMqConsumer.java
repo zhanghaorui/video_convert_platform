@@ -30,13 +30,17 @@ public class RabbitMqConsumer {
         this.videoService = videoService;
     }
 
+    // 使用内存缓存来跟踪消息重试次数
+    private final java.util.concurrent.ConcurrentHashMap<String, Integer> retryCountMap = 
+        new java.util.concurrent.ConcurrentHashMap<>();
+
     @RabbitListener(queues = "${mq.queues.video-task}", containerFactory = "manualAckContainerFactory")
     public void onMessage(Message message, Channel channel) throws IOException {
         long tag = message.getMessageProperties().getDeliveryTag();
         
-        // 检查重试计数，使用自定义头部追踪重试次数
-        Object retryCountObj = message.getMessageProperties().getHeaders().get("retry-count");
-        int retryCount = retryCountObj != null ? (Integer) retryCountObj : 0;
+        // 使用消息体的MD5作为唯一标识来追踪重试次数
+        String messageId = generateMessageId(message);
+        int retryCount = retryCountMap.getOrDefault(messageId, 0);
         
         // 最大重试次数
         final int MAX_RETRY_COUNT = 3;
@@ -47,10 +51,12 @@ public class RabbitMqConsumer {
                 !StringUtils.hasText(msg.getFilePath()) ||
                 !StringUtils.hasText(msg.getFileMd5())) {
                 log.error("Missing required fields in MQ message: {}", msg);
+                retryCountMap.remove(messageId); // 清理缓存
                 channel.basicReject(tag, false);
                 return;
             }
             videoService.processMqMessage(msg);
+            retryCountMap.remove(messageId); // 处理成功，清理缓存
             channel.basicAck(tag, false);
         } catch (Exception e) {
             String filePath = extractFilePath(message);
@@ -59,18 +65,35 @@ public class RabbitMqConsumer {
             if (retryCount >= MAX_RETRY_COUNT) {
                 log.error("消息处理失败超过最大重试次数({})，丢弃消息. 文件路径: {}, 错误: {}", 
                     MAX_RETRY_COUNT, filePath, e.getMessage());
+                retryCountMap.remove(messageId); // 清理缓存
                 // 拒绝消息且不重新排队，直接丢弃
                 channel.basicReject(tag, false);
             } else {
                 log.warn("消息处理失败(第{}次尝试)，将重试. 文件路径: {}, 错误: {}", 
                     retryCount + 1, filePath, e.getMessage());
                 
-                // 增加重试计数并重新发布消息
-                message.getMessageProperties().getHeaders().put("retry-count", retryCount + 1);
+                // 增加重试计数
+                retryCountMap.put(messageId, retryCount + 1);
                 
                 // 重新排队重试
                 channel.basicNack(tag, false, true);
             }
+        }
+    }
+    
+    private String generateMessageId(Message message) {
+        try {
+            // 使用消息体生成唯一ID
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+            byte[] hash = md.digest(message.getBody());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            // 降级方案：使用消息体内容哈希
+            return "msg_" + message.getBody().hashCode();
         }
     }
     
