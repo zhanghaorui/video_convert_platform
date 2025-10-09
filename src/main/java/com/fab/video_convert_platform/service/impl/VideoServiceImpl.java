@@ -330,11 +330,25 @@ public class VideoServiceImpl implements IVideoService {
                 .collect(Collectors.toList());
 
         if (quality != null && !quality.trim().isEmpty()) {
+            // 映射质量参数：standard -> normal
+            String mappedQuality = mapQualityParam(quality);
             allPlayUrls = allPlayUrls.stream()
-                    .filter(file -> quality.equals(file.getQualityLevel()))
+                    .filter(file -> mappedQuality.equals(file.getQualityLevel()))
                     .collect(Collectors.toList());
         }
 
         return allPlayUrls;
+    }
+
+    /**
+     * 映射质量参数，将用户传入的quality参数映射为数据库存储的quality_level
+     * @param quality 用户传入的质量参数
+     * @return 映射后的质量级别
+     */
+    private String mapQualityParam(String quality) {
+        if ("standard".equals(quality)) {
+            return VideoConstants.QUALITY_NORMAL; // "normal"
+        }
+        return quality;
     }
 }
