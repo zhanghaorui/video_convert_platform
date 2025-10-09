@@ -77,6 +77,18 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
     }
 
     @Override
+    public List<VideoUploadTask> findByProjectAndPatientAndVisit(String projectNo, String patientCode, String visit) {
+        List<VideoUploadTaskPO> list = mapper.selectList(
+            new LambdaQueryWrapper<VideoUploadTaskPO>()
+                .eq(VideoUploadTaskPO::getProjectNo, projectNo)
+                .eq(VideoUploadTaskPO::getPatientCode, patientCode)
+                .eq(VideoUploadTaskPO::getVisit, visit)
+                .orderByDesc(VideoUploadTaskPO::getVersionNo)
+        );
+        return list.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public boolean deleteById(Long id) {
         return mapper.deleteById(id) > 0;
     }
@@ -99,6 +111,7 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
         po.setProjectNo(task.getProjectNo());
         po.setPatientCode(task.getPatientCode());
         po.setTpStage(task.getTpStage());
+        po.setVisit(task.getVisit()); // 新增映射
         po.setUuid(task.getUuid());
         po.setVersionNo(task.getVersionNo());
         po.setSource(task.getSource());
@@ -132,7 +145,8 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
             po.getFileMd5(),
             po.getErrorMsg(),
             po.getCreateTime(),
-            po.getUpdateTime()
+            po.getUpdateTime(),
+            po.getVisit() // visit
         );
     }
 }

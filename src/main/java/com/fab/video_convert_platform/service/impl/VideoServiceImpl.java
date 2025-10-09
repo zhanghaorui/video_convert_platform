@@ -98,7 +98,7 @@ public class VideoServiceImpl implements IVideoService {
                 // 4. 数据库操作（使用事务）
                 task = uploadTaskTxService.saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
                     uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
-                    path, file.getSize(), md5);
+                    path, file.getSize(), md5, null); // visit null for full upload
 
                 span.tag("task_id", String.valueOf(task.getId()));
                 taskLogService.info(task.getId(), "original file archived");
@@ -120,7 +120,7 @@ public class VideoServiceImpl implements IVideoService {
     @Override
     public void uploadChunk(MultipartFile file, Integer chunk, Integer chunks,
                             String filename, String projectNo, String patientCode,
-                            String tpStage, String uuid) {
+                            String tpStage, String uuid, String visit) { // add visit
         // 1. 验证项目配置
         ProjectConfig config = validateProject(projectNo);
 
@@ -149,7 +149,7 @@ public class VideoServiceImpl implements IVideoService {
                     // 4. 数据库操作（使用事务）
                     VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(projectNo, patientCode,
                         tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER,
-                        filename, target, size, md5);
+                        filename, target, size, md5, visit);
 
                     span.tag("task_id", String.valueOf(task.getId()));
                     taskLogService.info(task.getId(), "chunks merged and archived");
@@ -213,10 +213,10 @@ public class VideoServiceImpl implements IVideoService {
                 nfsService.copyFile(source, target);
                 long size = Files.size(target);
 
-                // 5. 数据库操作（使用事务）
+                // 5. 数据库操作（使用事务）- 传递 visit 元数据
                 VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(message.getProjectNo(),
                         message.getPatientCode(), message.getTpStage(), uuid, versionNo,
-                        VideoConstants.SOURCE_MQ, fileName, target, size, md5);
+                        VideoConstants.SOURCE_MQ, fileName, target, size, md5, message.getVisit());
 
                 span.tag("task_id", String.valueOf(task.getId()));
                 taskLogService.info(task.getId(), "mq file archived");
@@ -286,43 +286,49 @@ public class VideoServiceImpl implements IVideoService {
 
     @Override
     public List<VideoArchiveFile> getPlayUrlsByParams(String projectNo, String patientCode, 
-                                                      String tpStage, Integer versionNo, String quality) {
+                                                      String tpStage, String visit, Integer versionNo, String quality) {
         if (projectNo == null || projectNo.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "项目编号不能为空");
         }
         if (patientCode == null || patientCode.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "受试者编码不能为空");
         }
-        if (tpStage == null || tpStage.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "访视点不能为空");
+        // 互斥校验：必须且只能传一个 tpStage 或 visit
+        boolean hasTp = tpStage != null && !tpStage.trim().isEmpty();
+        boolean hasVisit = visit != null && !visit.trim().isEmpty();
+        if (hasTp == hasVisit) { // 同时为true或同时为false
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "tpStage与visit必须且只能传一个");
         }
 
-        // 根据业务参数查询上传任务
-        List<VideoUploadTask> tasks = uploadTaskRepository.findByProjectAndPatientAndStage(
-                projectNo, patientCode, tpStage);
+        List<VideoUploadTask> tasks;
+        if (hasVisit) {
+            tasks = uploadTaskRepository.findByProjectAndPatientAndVisit(projectNo, patientCode, visit);
+        } else {
+            tasks = uploadTaskRepository.findByProjectAndPatientAndStage(projectNo, patientCode, tpStage);
+        }
 
         if (tasks.isEmpty()) {
-            return Collections.emptyList(); // 返回空列表而不是抛异常
+            return Collections.emptyList();
         }
 
-        // 如果指定了版本号，过滤任务
+        // 如果指定版本号过滤
         if (versionNo != null) {
             tasks = tasks.stream()
                     .filter(task -> versionNo.equals(task.getVersionNo()))
                     .collect(Collectors.toList());
+            if (tasks.isEmpty()) {
+                return Collections.emptyList();
+            }
         }
 
-        // 收集所有任务的播放URL
+        // 收集所有任务的 M3U8 播放文件
         List<VideoArchiveFile> allPlayUrls = tasks.stream()
-                .flatMap(task -> {
-                    List<VideoArchiveFile> files = archiveFileRepository.findByTaskIdAndFileType(
-                            task.getId(), VideoConstants.FILE_TYPE_M3U8);
-                    return files.stream();
-                })
+                .flatMap(task -> archiveFileRepository
+                        .findByTaskIdAndFileType(task.getId(), VideoConstants.FILE_TYPE_M3U8)
+                        .stream())
                 .filter(file -> "READY".equals(file.getStatus()))
                 .collect(Collectors.toList());
 
-        // 如果指定了质量级别，进一步过滤
         if (quality != null && !quality.trim().isEmpty()) {
             allPlayUrls = allPlayUrls.stream()
                     .filter(file -> quality.equals(file.getQualityLevel()))

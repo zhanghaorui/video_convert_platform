@@ -66,4 +66,9 @@ public class VideoUploadResponse {
      * 错误信息（如果有）
      */
     private String errorMsg;
+
+    /**
+     * 访视描述
+     */
+    private String visit;
 }

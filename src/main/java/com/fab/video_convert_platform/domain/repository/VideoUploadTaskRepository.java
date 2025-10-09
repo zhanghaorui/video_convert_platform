@@ -49,6 +49,15 @@ public interface VideoUploadTaskRepository {
     List<VideoUploadTask> findByProjectAndPatientAndStage(String projectNo, String patientCode, String tpStage);
 
     /**
+     * 根据项目编号、受试者编码、访视点查找任务
+     * @param projectNo 项目编号
+     * @param patientCode 受试者编码
+     * @param visit 访视
+     * @return 任务列表
+     */
+    List<VideoUploadTask> findByProjectAndPatientAndVisit(String projectNo, String patientCode, String visit);
+
+    /**
      * 删除任务
      * @param id 任务ID
      * @return 是否删除成功

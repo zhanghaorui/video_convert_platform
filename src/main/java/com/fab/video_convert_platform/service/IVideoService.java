@@ -36,10 +36,11 @@ public interface IVideoService {
      * @param patientCode subject code
      * @param tpStage     visit stage
      * @param uuid        unique id for upload session
+     * @param visit       visit information
      */
     void uploadChunk(MultipartFile file, Integer chunk, Integer chunks,
                      String filename, String projectNo, String patientCode,
-                     String tpStage, String uuid);
+                     String tpStage, String uuid, String visit);
 
     /**
      * Handle tasks pushed via MQ.
@@ -72,13 +73,15 @@ public interface IVideoService {
      * @param projectNo   project number
      * @param patientCode patient code
      * @param tpStage     visit stage
+     * @param visit       visit information
      * @param versionNo   version number (optional, if null returns latest version)
      * @param quality     quality level (optional, if null returns all qualities)
      * @return list of archive files with play URLs
      */
     List<VideoArchiveFile> getPlayUrlsByParams(String projectNo, 
                                                String patientCode, 
-                                               String tpStage, 
-                                               Integer versionNo, 
+                                               String tpStage,
+                                               String visit,
+                                               Integer versionNo,
                                                String quality);
 }

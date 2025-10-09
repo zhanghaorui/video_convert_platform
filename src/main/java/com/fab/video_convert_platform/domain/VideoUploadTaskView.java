@@ -20,6 +20,7 @@ public final class VideoUploadTaskView {
     private final String projectNo;
     private final String patientCode;
     private final String tpStage;
+    private final String visit; // 新增访视描述
     private final String uuid;
     private final Integer versionNo;
     private final String source;
@@ -39,11 +40,12 @@ public final class VideoUploadTaskView {
                                 String uuid, Integer versionNo, String source, String status,
                                 String mainFileName, String mainFilePath, Long fileSize,
                                 String fileMd5, String errorMsg, LocalDateTime createTime,
-                                LocalDateTime updateTime) {
+                                LocalDateTime updateTime, String visit) { // 新增visit参数
         this.id = id;
         this.projectNo = projectNo;
         this.patientCode = patientCode;
         this.tpStage = tpStage;
+        this.visit = visit;
         this.uuid = uuid;
         this.versionNo = versionNo;
         this.source = source;
@@ -67,7 +69,6 @@ public final class VideoUploadTaskView {
         if (task == null) {
             throw new IllegalArgumentException("Task cannot be null");
         }
-
         return new VideoUploadTaskView(
                 task.getId(),
                 task.getProjectNo(),
@@ -83,7 +84,8 @@ public final class VideoUploadTaskView {
                 task.getFileMd5(),
                 task.getErrorMsg(),
                 task.getCreateTime(),
-                task.getUpdateTime()
+                task.getUpdateTime(),
+                task.getVisit()
         );
     }
 
@@ -159,6 +161,7 @@ public final class VideoUploadTaskView {
                 Objects.equals(projectNo, that.projectNo) &&
                 Objects.equals(patientCode, that.patientCode) &&
                 Objects.equals(tpStage, that.tpStage) &&
+                Objects.equals(visit, that.visit) &&
                 Objects.equals(uuid, that.uuid) &&
                 Objects.equals(versionNo, that.versionNo) &&
                 Objects.equals(source, that.source) &&
@@ -174,7 +177,7 @@ public final class VideoUploadTaskView {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, projectNo, patientCode, tpStage, uuid, versionNo, source,
+        return Objects.hash(id, projectNo, patientCode, tpStage, visit, uuid, versionNo, source,
                 status, mainFileName, mainFilePath, fileSize, fileMd5, errorMsg,
                 createTime, updateTime);
     }
@@ -186,6 +189,7 @@ public final class VideoUploadTaskView {
                 ", projectNo='" + projectNo + '\'' +
                 ", patientCode='" + patientCode + '\'' +
                 ", tpStage='" + tpStage + '\'' +
+                ", visit='" + visit + '\'' +
                 ", uuid='" + uuid + '\'' +
                 ", versionNo=" + versionNo +
                 ", source='" + source + '\'' +

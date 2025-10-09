@@ -29,6 +29,11 @@ public class PlayUrlResponse {
     private String tpStage;
 
     /**
+     * 访视描述（与tpStage互斥）
+     */
+    private String visit; // 新增
+
+    /**
      * 任务列表
      */
     private List<PlayUrlTaskInfo> tasks;

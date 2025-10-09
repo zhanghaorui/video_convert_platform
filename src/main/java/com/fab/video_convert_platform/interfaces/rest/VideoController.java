@@ -1,6 +1,8 @@
 package com.fab.video_convert_platform.interfaces.rest;
 
 import com.fab.video_convert_platform.common.ApiResponse;
+import com.fab.video_convert_platform.common.ErrorCode;
+import com.fab.video_convert_platform.common.BusinessException; // add
 import com.fab.video_convert_platform.interfaces.dto.request.*;
 import com.fab.video_convert_platform.interfaces.dto.response.*;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
@@ -85,18 +87,19 @@ public class VideoController {
             @RequestParam @NotBlank(message = "文件名不能为空") String filename,
             @RequestParam @NotBlank(message = "UUID不能为空") String uuid,
             @RequestParam(required = false) Integer chunk,
-            @RequestParam(required = false) Integer chunks) {
+            @RequestParam(required = false) Integer chunks,
+            @RequestParam(required = false) String visit) { // 新增 visit 可选参数
 
-        log.info("开始上传视频分片: projectNo={}, patientCode={}, tpStage={}, filename={}, chunk={}/{}",
-                projectNo, patientCode, tpStage, filename, chunk, chunks);
+        log.info("开始上传视频分片: projectNo={}, patientCode={}, tpStage={}, filename={}, chunk={}/{}, visit={}",
+                projectNo, patientCode, tpStage, filename, chunk, chunks, visit);
 
-        videoService.uploadChunk(file, chunk, chunks, filename, projectNo, patientCode, tpStage, uuid);
+        videoService.uploadChunk(file, chunk, chunks, filename, projectNo, patientCode, tpStage, uuid, visit);
 
         String message = (chunk != null && chunks != null && chunk + 1 == chunks)
                 ? "分片上传完成，开始合并处理"
                 : "分片上传成功";
 
-        log.info("视频分片上传成功: chunk={}/{}", chunk, chunks);
+        log.info("视频分片上传成功: chunk={}/{}, visit={}", chunk, chunks, visit);
         return ApiResponse.success(message);
     }
 
@@ -133,6 +136,7 @@ public class VideoController {
         response.setFileSize(task.getFileSize());
         response.setCreateTime(task.getCreateTime());
         response.setErrorMsg(task.getErrorMsg());
+        response.setVisit(task.getVisit()); // 回填 visit
         return response;
     }
 
@@ -169,15 +173,22 @@ public class VideoController {
     public ApiResponse<PlayUrlResponse> getPlayUrlsByParams(
             @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
             @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
-            @RequestParam @NotBlank(message = "访视点不能为空") String tpStage,
+            @RequestParam(required = false) String tpStage,
+            @RequestParam(required = false) String visit,
             @RequestParam(required = false) Integer versionNo,
             @RequestParam(required = false) String quality) {
 
-        log.info("查询播放URL: projectNo={}, patientCode={}, tpStage={}, versionNo={}, quality={}",
-                projectNo, patientCode, tpStage, versionNo, quality);
+        log.info("查询播放URL: projectNo={}, patientCode={}, tpStage={}, visit={}, versionNo={}, quality={}",
+                projectNo, patientCode, tpStage, visit, versionNo, quality);
+
+        boolean hasTp = tpStage != null && !tpStage.trim().isEmpty();
+        boolean hasVisit = visit != null && !visit.trim().isEmpty();
+        if (hasTp == hasVisit) { // 同时传或都不传
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "tpStage与visit必须且只能传一个");
+        }
 
         List<VideoArchiveFile> archiveFiles = videoService.getPlayUrlsByParams(
-                projectNo, patientCode, tpStage, versionNo, quality);
+                projectNo, patientCode, tpStage, visit, versionNo, quality);
 
         // 按任务分组构建响应
         Map<Long, List<VideoArchiveFile>> taskGroups = archiveFiles.stream()
@@ -187,36 +198,35 @@ public class VideoController {
                 .map(entry -> {
                     Long taskId = entry.getKey();
                     List<VideoArchiveFile> files = entry.getValue();
-                    
-                    // 获取任务信息（使用第一个文件关联的任务ID）
                     VideoUploadTask task = videoService.getTaskById(taskId);
-                    
                     PlayUrlTaskInfo taskInfo = new PlayUrlTaskInfo();
                     taskInfo.setTaskId(taskId);
                     taskInfo.setUuid(task.getUuid());
                     taskInfo.setVersionNo(task.getVersionNo());
                     taskInfo.setStatus(task.getStatus());
                     taskInfo.setCreateTime(task.getCreateTime());
-                    
                     List<PlayUrlInfo> playUrls = files.stream()
                             .map(this::convertToPlayUrlInfo)
                             .collect(Collectors.toList());
                     taskInfo.setPlayUrls(playUrls);
-                    
                     return taskInfo;
                 })
-                .sorted((t1, t2) -> t2.getCreateTime().compareTo(t1.getCreateTime())) // 按创建时间倒序
+                .sorted((t1, t2) -> t2.getCreateTime().compareTo(t1.getCreateTime()))
                 .collect(Collectors.toList());
 
         PlayUrlResponse response = new PlayUrlResponse();
         response.setProjectNo(projectNo);
         response.setPatientCode(patientCode);
-        response.setTpStage(tpStage);
+        if (hasTp) {
+            response.setTpStage(tpStage);
+        } else {
+            response.setVisit(visit);
+        }
         response.setTasks(tasks);
         response.setTotalTasks(tasks.size());
         response.setTotalPlayUrls(archiveFiles.size());
 
-        log.info("查询到{}个任务，{}个播放URL", tasks.size(), archiveFiles.size());
+        log.info("查询到{}个任务，{}个播放URL (by {})", tasks.size(), archiveFiles.size(), hasTp ? "tpStage" : "visit");
         return ApiResponse.success(response);
     }
 

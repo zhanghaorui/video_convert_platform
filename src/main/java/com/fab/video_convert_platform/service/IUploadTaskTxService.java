@@ -16,5 +16,5 @@ public interface IUploadTaskTxService {
      */
     VideoUploadTask saveUploadTaskInTransaction(String projectNo, String patientCode,
             String tpStage, String uuid, Integer versionNo, String source,
-            String fileName, Path filePath, Long fileSize, String md5);
+            String fileName, Path filePath, Long fileSize, String md5, String visit);
 }
