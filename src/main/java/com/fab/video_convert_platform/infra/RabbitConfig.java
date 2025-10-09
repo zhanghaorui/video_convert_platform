@@ -7,14 +7,12 @@ import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainer
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 
 /**
  * RabbitMQ listener configuration with manual acknowledgement.
  * @author 张浩锐
  */
 @Configuration
-@Profile("!test")
 @ConditionalOnProperty(value = "mq.enabled", havingValue = "true", matchIfMissing = false)
 public class RabbitConfig {
 
