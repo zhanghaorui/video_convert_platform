@@ -3,6 +3,7 @@ package com.fab.video_convert_platform.service.impl;
 import com.fab.video_convert_platform.common.BusinessException;
 import com.fab.video_convert_platform.common.ErrorCode;
 import com.fab.video_convert_platform.common.VideoConstants;
+import lombok.extern.slf4j.Slf4j;
 import com.fab.video_convert_platform.domain.ProjectConfig;
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.VideoArchiveFile;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 /**
  * Implementation of video service operations with optimized transaction boundaries.
  */
+@Slf4j
 @Service
 public class VideoServiceImpl implements IVideoService {
 
@@ -185,6 +187,13 @@ public class VideoServiceImpl implements IVideoService {
                     "Source file not found: " + message.getFilePath());
             }
 
+            // 2.1 处理 tpStage：如果为空则使用 visit 作为默认值
+            String tpStage = message.getTpStage();
+            if (tpStage == null || tpStage.trim().isEmpty()) {
+                tpStage = message.getVisit() != null ? message.getVisit() : "UNKNOWN";
+                log.info("tpStage为空，使用 visit={} 或默认值: {}", message.getVisit(), tpStage);
+            }
+
             try {
                 // 3. MD5校验
                 if (message.getFileMd5() == null) {
@@ -207,7 +216,7 @@ public class VideoServiceImpl implements IVideoService {
                 int versionNo = VideoConstants.DEFAULT_VERSION_NO;
                 String uuid = UUID.randomUUID().toString().replace("-", "");
                 Path target = ArchivePathUtil.buildOriginalPath(config.getArchiveRoot(),
-                        message.getProjectNo(), message.getPatientCode(), message.getTpStage(),
+                        message.getProjectNo(), message.getPatientCode(), tpStage,
                         versionNo, uuid, fileName);
 
                 nfsService.copyFile(source, target);
@@ -215,7 +224,7 @@ public class VideoServiceImpl implements IVideoService {
 
                 // 5. 数据库操作（使用事务）- 传递 visit 元数据
                 VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(message.getProjectNo(),
-                        message.getPatientCode(), message.getTpStage(), uuid, versionNo,
+                        message.getPatientCode(), tpStage, uuid, versionNo,
                         VideoConstants.SOURCE_MQ, fileName, target, size, md5, message.getVisit());
 
                 span.tag("task_id", String.valueOf(task.getId()));

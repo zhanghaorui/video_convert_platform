@@ -7,7 +7,7 @@ import javax.validation.constraints.Size;
 
 /**
  * 项目配置创建请求DTO
- *
+ * 
  * @author zhanghaorui
  */
 @Data
