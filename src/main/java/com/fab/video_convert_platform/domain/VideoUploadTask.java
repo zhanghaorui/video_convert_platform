@@ -29,6 +29,8 @@ public class VideoUploadTask extends BaseEntity {
 
     private String visit; // 新增访视描述字段
 
+    private String checkDate; // 新增检查日期字段
+
     private String uuid;
 
     private Integer versionNo;
@@ -64,13 +66,14 @@ public class VideoUploadTask extends BaseEntity {
                                           String uuid, Integer versionNo, String source, String status,
                                           String mainFileName, String mainFilePath, Long fileSize,
                                           String fileMd5, String errorMsg, LocalDateTime createTime,
-                                          LocalDateTime updateTime, String visit) { // 新增 visit 参与重建
+                                          LocalDateTime updateTime, String visit, String checkDate) { // 新增 visit 和 checkDate 参与重建
         VideoUploadTask task = new VideoUploadTask();
         task.setId(id);
         task.projectNo = projectNo;
         task.patientCode = patientCode;
         task.tpStage = tpStage;
         task.visit = visit;
+        task.checkDate = checkDate;
         task.uuid = uuid;
         task.versionNo = versionNo;
         task.source = source;
@@ -85,6 +88,16 @@ public class VideoUploadTask extends BaseEntity {
         return task;
     }
 
+    // 兼容旧的rebuild签名（无visit和checkDate）
+    public static VideoUploadTask rebuild(Long id, String projectNo, String patientCode, String tpStage,
+                                          String uuid, Integer versionNo, String source, String status,
+                                          String mainFileName, String mainFilePath, Long fileSize,
+                                          String fileMd5, String errorMsg, LocalDateTime createTime,
+                                          LocalDateTime updateTime, String visit) {
+        return rebuild(id, projectNo, patientCode, tpStage, uuid, versionNo, source, status,
+                mainFileName, mainFilePath, fileSize, fileMd5, errorMsg, createTime, updateTime, visit, null);
+    }
+
     // 兼容旧的rebuild签名（无visit）
     public static VideoUploadTask rebuild(Long id, String projectNo, String patientCode, String tpStage,
                                           String uuid, Integer versionNo, String source, String status,
@@ -92,7 +105,7 @@ public class VideoUploadTask extends BaseEntity {
                                           String fileMd5, String errorMsg, LocalDateTime createTime,
                                           LocalDateTime updateTime) {
         return rebuild(id, projectNo, patientCode, tpStage, uuid, versionNo, source, status,
-                mainFileName, mainFilePath, fileSize, fileMd5, errorMsg, createTime, updateTime, null);
+                mainFileName, mainFilePath, fileSize, fileMd5, errorMsg, createTime, updateTime, null, null);
     }
 
     /**
@@ -108,12 +121,14 @@ public class VideoUploadTask extends BaseEntity {
      * @param filePath    文件路径
      * @param fileSize    文件大小
      * @param fileMd5     文件MD5
+     * @param visit       访视描述
+     * @param checkDate   检查日期
      * @return 视频上传任务实体
      */
     public static VideoUploadTask createOriginalSaved(String projectNo, String patientCode,
                                                       String tpStage, String uuid, Integer versionNo,
                                                       String source, String fileName, String filePath,
-                                                      Long fileSize, String fileMd5, String visit) { // 添加 visit
+                                                      Long fileSize, String fileMd5, String visit, String checkDate) { // 添加 visit 和 checkDate
         // 参数校验
         validateCreateParams(projectNo, patientCode, tpStage, uuid, versionNo,
             source, fileName, filePath, fileSize, fileMd5);
@@ -123,6 +138,7 @@ public class VideoUploadTask extends BaseEntity {
         task.patientCode = patientCode;
         task.tpStage = tpStage;
         task.visit = visit;
+        task.checkDate = checkDate;
         task.uuid = uuid;
         task.versionNo = versionNo;
         task.source = source;
@@ -139,13 +155,22 @@ public class VideoUploadTask extends BaseEntity {
         return task;
     }
 
+    // 兼容旧的createOriginalSaved签名（无checkDate）
+    public static VideoUploadTask createOriginalSaved(String projectNo, String patientCode,
+                                                      String tpStage, String uuid, Integer versionNo,
+                                                      String source, String fileName, String filePath,
+                                                      Long fileSize, String fileMd5, String visit) {
+        return createOriginalSaved(projectNo, patientCode, tpStage, uuid, versionNo, source,
+                fileName, filePath, fileSize, fileMd5, visit, null);
+    }
+
     // 兼容旧的createOriginalSaved签名（无visit）
     public static VideoUploadTask createOriginalSaved(String projectNo, String patientCode,
                                                       String tpStage, String uuid, Integer versionNo,
                                                       String source, String fileName, String filePath,
                                                       Long fileSize, String fileMd5) {
         return createOriginalSaved(projectNo, patientCode, tpStage, uuid, versionNo, source,
-                fileName, filePath, fileSize, fileMd5, null);
+                fileName, filePath, fileSize, fileMd5, null, null);
     }
 
     /**

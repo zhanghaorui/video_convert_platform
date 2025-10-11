@@ -21,6 +21,7 @@ public final class VideoUploadTaskView {
     private final String patientCode;
     private final String tpStage;
     private final String visit; // 新增访视描述
+    private final String checkDate; // 新增检查日期
     private final String uuid;
     private final Integer versionNo;
     private final String source;
@@ -40,12 +41,13 @@ public final class VideoUploadTaskView {
                                 String uuid, Integer versionNo, String source, String status,
                                 String mainFileName, String mainFilePath, Long fileSize,
                                 String fileMd5, String errorMsg, LocalDateTime createTime,
-                                LocalDateTime updateTime, String visit) { // 新增visit参数
+                                LocalDateTime updateTime, String visit, String checkDate) { // 新增visit和checkDate参数
         this.id = id;
         this.projectNo = projectNo;
         this.patientCode = patientCode;
         this.tpStage = tpStage;
         this.visit = visit;
+        this.checkDate = checkDate;
         this.uuid = uuid;
         this.versionNo = versionNo;
         this.source = source;
@@ -85,7 +87,8 @@ public final class VideoUploadTaskView {
                 task.getErrorMsg(),
                 task.getCreateTime(),
                 task.getUpdateTime(),
-                task.getVisit()
+                task.getVisit(),
+                task.getCheckDate()
         );
     }
 

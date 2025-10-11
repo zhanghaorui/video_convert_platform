@@ -100,7 +100,7 @@ public class VideoServiceImpl implements IVideoService {
                 // 4. 数据库操作（使用事务）
                 task = uploadTaskTxService.saveUploadTaskInTransaction(projectNo, patientCode, tpStage,
                     uuid, versionNo, VideoConstants.SOURCE_CONTROLLER, fileName,
-                    path, file.getSize(), md5, null); // visit null for full upload
+                    path, file.getSize(), md5, null, null); // visit 和 checkDate null for full upload
 
                 span.tag("task_id", String.valueOf(task.getId()));
                 taskLogService.info(task.getId(), "original file archived");
@@ -151,7 +151,7 @@ public class VideoServiceImpl implements IVideoService {
                     // 4. 数据库操作（使用事务）
                     VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(projectNo, patientCode,
                         tpStage, uuid, versionNo, VideoConstants.SOURCE_CONTROLLER,
-                        filename, target, size, md5, visit);
+                        filename, target, size, md5, visit, null); // checkDate null for chunk upload
 
                     span.tag("task_id", String.valueOf(task.getId()));
                     taskLogService.info(task.getId(), "chunks merged and archived");
@@ -222,10 +222,10 @@ public class VideoServiceImpl implements IVideoService {
                 nfsService.copyFile(source, target);
                 long size = Files.size(target);
 
-                // 5. 数据库操作（使用事务）- 传递 visit 元数据
+                // 5. 数据库操作（使用事务）- 传递 visit 和 checkDate 元数据
                 VideoUploadTask task = uploadTaskTxService.saveUploadTaskInTransaction(message.getProjectNo(),
                         message.getPatientCode(), tpStage, uuid, versionNo,
-                        VideoConstants.SOURCE_MQ, fileName, target, size, md5, message.getVisit());
+                        VideoConstants.SOURCE_MQ, fileName, target, size, md5, message.getVisit(), message.getCheckDate());
 
                 span.tag("task_id", String.valueOf(task.getId()));
                 taskLogService.info(task.getId(), "mq file archived");

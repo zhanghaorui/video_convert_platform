@@ -112,6 +112,7 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
         po.setPatientCode(task.getPatientCode());
         po.setTpStage(task.getTpStage());
         po.setVisit(task.getVisit()); // 新增映射
+        po.setCheckDate(task.getCheckDate()); // 新增映射
         po.setUuid(task.getUuid());
         po.setVersionNo(task.getVersionNo());
         po.setSource(task.getSource());
@@ -146,7 +147,8 @@ public class VideoUploadTaskRepositoryImpl implements VideoUploadTaskRepository 
             po.getErrorMsg(),
             po.getCreateTime(),
             po.getUpdateTime(),
-            po.getVisit() // visit
+            po.getVisit(), // visit
+            po.getCheckDate() // checkDate
         );
     }
 }

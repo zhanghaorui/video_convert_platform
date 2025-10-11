@@ -36,13 +36,13 @@ public class UploadTaskTxServiceImpl implements IUploadTaskTxService {
     @Transactional(rollbackFor = Exception.class)
     public VideoUploadTask saveUploadTaskInTransaction(String projectNo, String patientCode,
             String tpStage, String uuid, Integer versionNo, String source,
-            String fileName, Path filePath, Long fileSize, String md5, String visit) {
+            String fileName, Path filePath, Long fileSize, String md5, String visit, String checkDate) {
 
         Span span = tracer.nextSpan().name("task_db_upsert").start();
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             VideoUploadTask task = VideoUploadTask.createOriginalSaved(projectNo, patientCode,
                     tpStage, uuid, versionNo, source, fileName,
-                    filePath.toString(), fileSize, md5, visit);
+                    filePath.toString(), fileSize, md5, visit, checkDate);
 
             uploadTaskRepository.save(task);
 

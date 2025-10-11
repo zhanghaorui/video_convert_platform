@@ -25,6 +25,9 @@ public class VideoUploadTaskPO extends BasePO {
     @TableField("visit") // 新增访视描述字段
     private String visit;
 
+    @TableField("check_date") // 新增检查日期字段
+    private String checkDate;
+
     @TableField("uuid")
     private String uuid;
 

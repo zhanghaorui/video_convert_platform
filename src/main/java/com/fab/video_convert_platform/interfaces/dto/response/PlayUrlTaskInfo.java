@@ -33,6 +33,11 @@ public class PlayUrlTaskInfo {
     private String status;
 
     /**
+     * 检查日期
+     */
+    private String checkDate;
+
+    /**
      * 任务创建时间
      */
     private LocalDateTime createTime;

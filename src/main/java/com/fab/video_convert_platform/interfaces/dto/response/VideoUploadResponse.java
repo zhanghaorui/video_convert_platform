@@ -71,4 +71,9 @@ public class VideoUploadResponse {
      * 访视描述
      */
     private String visit;
+
+    /**
+     * 检查日期
+     */
+    private String checkDate;
 }

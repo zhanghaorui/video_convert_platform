@@ -137,6 +137,7 @@ public class VideoController {
         response.setCreateTime(task.getCreateTime());
         response.setErrorMsg(task.getErrorMsg());
         response.setVisit(task.getVisit()); // 回填 visit
+        response.setCheckDate(task.getCheckDate()); // 回填 checkDate
         return response;
     }
 
@@ -204,6 +205,7 @@ public class VideoController {
                     taskInfo.setUuid(task.getUuid());
                     taskInfo.setVersionNo(task.getVersionNo());
                     taskInfo.setStatus(task.getStatus());
+                    taskInfo.setCheckDate(task.getCheckDate()); // 设置检查日期
                     taskInfo.setCreateTime(task.getCreateTime());
                     List<PlayUrlInfo> playUrls = files.stream()
                             .map(this::convertToPlayUrlInfo)
