@@ -91,3 +91,12 @@ Thumbs.db
 /video-temp/
 *.mp4.tmp
 *.processing
+
+# Documentation files
+*.md
+docs/
+!.github/**/*.md
+
+# Database migration scripts
+migration_*.sql
+init_database.sql
