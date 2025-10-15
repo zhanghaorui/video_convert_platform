@@ -119,7 +119,48 @@ public class FFmpegUtil {
     }
 
     /**
+     * 快速验证视频文件（仅检查前几秒）
+     * 用于大文件的快速完整性检查，避免全文件扫描超时
+     *
+     * @param input 输入视频文件
+     * @param durationSeconds 检查的时长（秒），默认建议10-30秒
+     */
+    public void validateQuick(Path input, int durationSeconds) throws IOException, InterruptedException {
+        log.info("开始快速验证视频文件（前{}秒）: {}", durationSeconds, input);
+
+        if (!Files.exists(input)) {
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND,
+                    "Video file not found: " + input);
+        }
+
+        List<String> cmd = new ArrayList<>();
+        cmd.add(properties.getFfmpeg().getExecutablePath());
+        cmd.add("-v");
+        cmd.add("error");
+        cmd.add("-t");
+        cmd.add(String.valueOf(durationSeconds));  // 只读取前N秒
+        cmd.add("-i");
+        cmd.add(input.toString());
+        cmd.add("-f");
+        cmd.add("null");
+        cmd.add("-");
+
+        try {
+            // 快速验证使用较短超时（1分钟）
+            runCommand(cmd, 60000);
+            log.info("视频文件快速验证通过: {}", input);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
+                throw new BusinessException(ErrorCode.VIDEO_CORRUPTED,
+                        "Video file is corrupted or unreadable: " + input);
+            }
+            throw e;
+        }
+    }
+
+    /**
      * Convert AVI video to MP4 using H.264/AAC codecs.
+     * 对于高码率视频（如DV格式 >20Mbps），先降低码率再转换，大幅提升处理速度
      */
     public void aviToMp4(Path input, Path output) throws IOException, InterruptedException {
         // 输入参数验证
@@ -132,7 +173,7 @@ public class FFmpegUtil {
         
         log.info("开始转换AVI到MP4: {} -> {}", input, output);
 
-        // 获取原始视频码率（kbps），若失败则使用默认兜底
+        // 检测原始码率
         Integer originBitrateKbps = null;
         try {
             originBitrateKbps = getVideoBitrateKbps(input);
@@ -142,76 +183,148 @@ public class FFmpegUtil {
         } catch (Exception e) {
             log.warn("获取原始码率失败，使用默认策略: {}", e.getMessage());
         }
-        // 合理兜底：1080p 场景给 8000kbps；避免过低导致质量下降
-        int fallbackBitrateKbps = 8000;
-        int targetBitrateKbps = originBitrateKbps != null ? originBitrateKbps : fallbackBitrateKbps;
-        // 限制一个上限防止异常文件导致极端高码率（例如错误元数据）
-        if (targetBitrateKbps > 30000) { // 30 Mbps 上限
-            log.info("原始码率{}kbps超出上限，截断为30Mbps", targetBitrateKbps);
-            targetBitrateKbps = 30000;
-        }
-        log.info("AVI转MP4采用目标视频码率: {} kbps (原始={} kbps, fallback={})", targetBitrateKbps, originBitrateKbps, fallbackBitrateKbps);
 
-        // 空指针安全检查
-        Path parent = output.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
+        // 高码率阈值：20 Mbps (20000 kbps) - DV格式通常在48Mbps左右
+        final int HIGH_BITRATE_THRESHOLD = 20000;
+
+        Path actualInput = input;
+        Path tempPreprocessed = null;
+
+        // 如果码率超过阈值，先进行降码率预处理
+        if (originBitrateKbps != null && originBitrateKbps > HIGH_BITRATE_THRESHOLD) {
+            log.warn("检测到高码率视频: {}kbps (>{}kbps)，先进行降码率预处理以加快转换速度",
+                     originBitrateKbps, HIGH_BITRATE_THRESHOLD);
+
+            // 创建临时预处理文件
+            tempPreprocessed = input.getParent().resolve("temp_preprocessed_" + System.currentTimeMillis() + ".mp4");
+
+            try {
+                // 使用快速预设降低码率到合理范围 (12 Mbps)
+                preprocessHighBitrateVideo(input, tempPreprocessed, 12000);
+                actualInput = tempPreprocessed;
+                log.info("高码率视频预处理完成，使用预处理文件继续转换");
+            } catch (Exception e) {
+                log.error("预处理失败，回退使用原始文件: {}", e.getMessage());
+                // 清理临时文件
+                if (tempPreprocessed != null && Files.exists(tempPreprocessed)) {
+                    Files.deleteIfExists(tempPreprocessed);
+                }
+                actualInput = input;
+            }
         }
+
+        try {
+            // 确定最终目标码率
+            int fallbackBitrateKbps = 8000;
+            int targetBitrateKbps = (originBitrateKbps != null && originBitrateKbps <= HIGH_BITRATE_THRESHOLD)
+                                    ? originBitrateKbps : fallbackBitrateKbps;
+
+            // 限制上限为 15 Mbps（已经通过预处理降低了高码率）
+            if (targetBitrateKbps > 15000) {
+                log.info("目标码率{}kbps超出上限，截断为15Mbps", targetBitrateKbps);
+                targetBitrateKbps = 15000;
+            }
+
+            log.info("AVI转MP4采用目标码率: {} kbps (原始={} kbps)", targetBitrateKbps, originBitrateKbps);
+
+            // 空指针安全检查
+            Path parent = output.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            List<String> cmd = new ArrayList<>();
+            cmd.add(properties.getFfmpeg().getExecutablePath());
+            if (properties.getFfmpeg().isUseVideoToolbox()) {
+                cmd.add("-hwaccel");
+                cmd.add("videotoolbox");
+            }
+            cmd.add("-i");
+            cmd.add(actualInput.toString());
+            cmd.add("-c:v");
+            if (properties.getFfmpeg().isUseVideoToolbox()) {
+                cmd.add("h264_videotoolbox");
+                cmd.add("-b:v");
+                cmd.add(targetBitrateKbps + "k");
+                cmd.add("-maxrate");
+                cmd.add(targetBitrateKbps + "k");
+                cmd.add("-bufsize");
+                cmd.add((targetBitrateKbps * 2) + "k");
+            } else {
+                cmd.add("libx264");
+                cmd.add("-preset");
+                cmd.add("medium");
+                cmd.add("-profile:v");
+                cmd.add("high");
+                cmd.add("-level");
+                cmd.add("4.1");
+                cmd.add("-pix_fmt");
+                cmd.add("yuv420p");
+                cmd.add("-b:v");
+                cmd.add(targetBitrateKbps + "k");
+                cmd.add("-maxrate");
+                cmd.add(targetBitrateKbps + "k");
+                cmd.add("-bufsize");
+                cmd.add((targetBitrateKbps * 2) + "k");
+            }
+            cmd.add("-c:a");
+            cmd.add("aac");
+            cmd.add("-threads");
+            cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
+            cmd.add("-movflags");
+            cmd.add("+faststart");
+            cmd.add(output.toString());
+
+            runCommand(cmd);
+            log.info("AVI转MP4完成: {} (最终码率={}kbps)", output, targetBitrateKbps);
+
+        } finally {
+            // 清理临时预处理文件
+            if (tempPreprocessed != null && Files.exists(tempPreprocessed)) {
+                try {
+                    Files.deleteIfExists(tempPreprocessed);
+                    log.info("已清理临时预处理文件: {}", tempPreprocessed);
+                } catch (IOException e) {
+                    log.warn("清理临时文件失败: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * 对高码率视频进行快速降码率预处理
+     * 使用 ultrafast 预设和适中的码率，快速完成第一遍转码
+     */
+    private void preprocessHighBitrateVideo(Path input, Path output, int targetBitrateKbps)
+            throws IOException, InterruptedException {
+        log.info("开始预处理高码率视频: {} -> {} (目标码率={}kbps)", input, output, targetBitrateKbps);
+
         List<String> cmd = new ArrayList<>();
         cmd.add(properties.getFfmpeg().getExecutablePath());
-        if (properties.getFfmpeg().isUseVideoToolbox()) {
-            cmd.add("-hwaccel");
-            cmd.add("videotoolbox");
-        }
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-c:v");
-        if (properties.getFfmpeg().isUseVideoToolbox()) {
-            cmd.add("h264_videotoolbox");
-            cmd.add("-b:v");
-            cmd.add(targetBitrateKbps + "k");
-            cmd.add("-maxrate");
-            cmd.add(targetBitrateKbps + "k");
-            cmd.add("-bufsize");
-            cmd.add((targetBitrateKbps * 2) + "k");
-        } else {
-            cmd.add("libx264");
-            // 为保持原始感知质量，使用显式码率 + 高配置
-            cmd.add("-preset");
-            cmd.add("medium");
-            cmd.add("-profile:v");
-            cmd.add("high");
-            cmd.add("-level");
-            cmd.add("4.1");
-            cmd.add("-pix_fmt");
-            cmd.add("yuv420p");
-            cmd.add("-b:v");
-            cmd.add(targetBitrateKbps + "k");
-            cmd.add("-maxrate");
-            cmd.add(targetBitrateKbps + "k");
-            cmd.add("-bufsize");
-            cmd.add((targetBitrateKbps * 2) + "k");
-        }
-        // 音频：保持或转成 AAC；如果原文件无音频不会报错
+        cmd.add("libx264");
+        cmd.add("-preset");
+        cmd.add("ultrafast");
+        // 使用2-pass式的严格码率控制
+        cmd.add("-b:v");
+        cmd.add(targetBitrateKbps + "k");
+        cmd.add("-maxrate");
+        cmd.add(targetBitrateKbps + "k");
+        cmd.add("-bufsize");
+        cmd.add((targetBitrateKbps / 2) + "k");  // 减小buffer，更严格控制
+        cmd.add("-x264-params");
+        cmd.add("nal-hrd=cbr");  // 强制恒定码率
         cmd.add("-c:a");
-        cmd.add("aac");
+        cmd.add("copy");
         cmd.add("-threads");
         cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
-        // 头部优化以便 HLS 快速起播
-        cmd.add("-movflags");
-        cmd.add("+faststart");
+        cmd.add("-y");
         cmd.add(output.toString());
 
-        try {
-            runCommand(cmd);
-            log.info("AVI转MP4完成: {} (目标码率={}kbps)", output, targetBitrateKbps);
-        } catch (BusinessException e) {
-            if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
-                throw new BusinessException(ErrorCode.TRANSCODE_FAILED,
-                        "Failed to convert AVI to MP4: " + e.getMessage());
-            }
-            throw e;
-        }
+        runCommand(cmd);
+        log.info("高码率视频预处理完成: {}", output);
     }
 
     /**

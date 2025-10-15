@@ -2,6 +2,7 @@ package com.fab.video_convert_platform.domain.event;
 
 import com.fab.video_convert_platform.domain.VideoUploadTask;
 import com.fab.video_convert_platform.domain.VideoUploadTaskView;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Event indicating the task has finished processing and should trigger callback.
@@ -10,6 +11,11 @@ import com.fab.video_convert_platform.domain.VideoUploadTaskView;
 public class TaskCallbackEvent implements DomainEvent {
     private final VideoUploadTaskView taskView;
 
+    /**
+     * 构造任务回调事件
+     * @param task 任务对象
+     */
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Task object is managed externally")
     public TaskCallbackEvent(VideoUploadTask task) {
         if (task == null) {
             throw new IllegalArgumentException("Task cannot be null");

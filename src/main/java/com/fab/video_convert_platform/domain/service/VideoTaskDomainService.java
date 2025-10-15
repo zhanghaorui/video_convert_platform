@@ -151,6 +151,7 @@ public class VideoTaskDomainService {
 
     /**
      * 验证并获取输入视频文件
+     * 对于大文件(>200MB)使用快速验证（仅检查前10秒），避免高码率视频超时
      */
     private Path validateAndGetInputVideo(VideoUploadTask task) throws IOException, InterruptedException {
         Path input = Paths.get(task.getMainFilePath());
@@ -160,11 +161,25 @@ public class VideoTaskDomainService {
                 "视频文件不存在: " + task.getMainFilePath());
         }
 
-        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
-            "开始验证视频文件完整性"));
-        ffmpegUtil.validate(input);
-        eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
-            "视频文件验证通过"));
+        // 对于大文件（可能是高码率视频），使用快速验证
+        long fileSizeBytes = Files.size(input);
+        long fileSizeMB = fileSizeBytes / (1024 * 1024);
+
+        if (fileSizeMB > 200) {
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                String.format("大文件(%dMB)使用快速验证（前10秒）", fileSizeMB)));
+            log.info("大文件使用快速验证: size={}MB, path={}", fileSizeMB, input);
+            // 快速验证：只检查前10秒，既能发现文件损坏，又不会超时
+            ffmpegUtil.validateQuick(input, 10);
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                "视频文件快速验证通过"));
+        } else {
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                "开始验证视频文件完整性"));
+            ffmpegUtil.validate(input);
+            eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
+                "视频文件验证通过"));
+        }
 
         return input;
     }
