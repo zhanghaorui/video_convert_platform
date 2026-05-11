@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Helper utilities for invoking FFmpeg command line with timeout support.
+ * 支持分阶段超时策略，根据视频时长动态计算超时时间。
  */
 @Slf4j
 @Component
@@ -31,6 +32,89 @@ public class FFmpegUtil {
 
     public FFmpegUtil(VideoProcessingProperties properties) {
         this.properties = properties;
+    }
+
+    /**
+     * 获取视频时长（秒）
+     * 使用 ffprobe 快速探测，失败时返回默认值
+     */
+    public double getVideoDurationSeconds(Path input) {
+        if (input == null || !Files.exists(input)) {
+            log.warn("视频文件不存在或路径为空，使用默认时长 300秒");
+            return 300.0;
+        }
+
+        List<String> cmd = new ArrayList<>();
+        cmd.add("ffprobe");
+        cmd.add("-v");
+        cmd.add("error");
+        cmd.add("-show_entries");
+        cmd.add("format=duration");
+        cmd.add("-of");
+        cmd.add("default=noprint_wrappers=1:nokey=1");
+        cmd.add(input.toString());
+
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(true);
+        try {
+            Process process = pb.start();
+            boolean finished = process.waitFor(5000, TimeUnit.MILLISECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                log.warn("获取视频时长超时，使用默认值 300秒");
+                return 300.0;
+            }
+
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line = br.readLine();
+                if (line != null && !line.trim().isEmpty() && !"N/A".equalsIgnoreCase(line.trim())) {
+                    double duration = Double.parseDouble(line.trim());
+                    log.info("视频时长: {} 秒 ({})", duration, input);
+                    return duration;
+                }
+            }
+        } catch (IOException | InterruptedException | NumberFormatException e) {
+            log.warn("获取视频时长失败: {}, 使用默认值 300秒", e.getMessage());
+        }
+
+        return 300.0;
+    }
+
+    /**
+     * 计算转码操作动态超时时间
+     * 公式: base_timeout + video_duration_minutes * transcode_timeout_per_minute
+     */
+    public long computeTranscodeTimeout(double videoDurationSeconds) {
+        double minutes = videoDurationSeconds / 60.0;
+        long baseTimeout = properties.getFfmpeg().getTimeout();
+        long perMinute = properties.getFfmpeg().getTranscodeTimeoutPerMinute();
+        long dynamicTimeout = baseTimeout + (long) (minutes * perMinute);
+        // 设置上限：不超过 2 小时
+        long maxTimeout = 7200000L;
+        if (dynamicTimeout > maxTimeout) {
+            dynamicTimeout = maxTimeout;
+        }
+        log.info("转码动态超时: {}ms (视频时长={}分钟)", dynamicTimeout, minutes);
+        return dynamicTimeout;
+    }
+
+    /**
+     * 计算切片操作动态超时时间
+     * 公式: base_timeout + video_duration_minutes * slice_timeout_per_minute
+     */
+    public long computeSliceTimeout(double videoDurationSeconds) {
+        double minutes = videoDurationSeconds / 60.0;
+        long baseTimeout = properties.getFfmpeg().getTimeout();
+        long perMinute = properties.getFfmpeg().getSliceTimeoutPerMinute();
+        long dynamicTimeout = baseTimeout + (long) (minutes * perMinute);
+        // 设置上限：不超过 1 小时
+        long maxTimeout = 3600000L;
+        if (dynamicTimeout > maxTimeout) {
+            dynamicTimeout = maxTimeout;
+        }
+        log.info("切片动态超时: {}ms (视频时长={}分钟)", dynamicTimeout, minutes);
+        return dynamicTimeout;
     }
 
     /**
@@ -107,7 +191,8 @@ public class FFmpegUtil {
         cmd.add("-");
 
         try {
-            runCommand(cmd);
+            // 验证操作使用固定超时
+            runCommand(cmd, properties.getFfmpeg().getValidateTimeout());
             log.info("视频文件验证通过: {}", input);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
@@ -146,8 +231,8 @@ public class FFmpegUtil {
         cmd.add("-");
 
         try {
-            // 快速验证使用较短超时（1分钟）
-            runCommand(cmd, 60000);
+            // 快速验证使用固定超时
+            runCommand(cmd, properties.getFfmpeg().getValidateQuickTimeout());
             log.info("视频文件快速验证通过: {}", input);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED) {
@@ -275,7 +360,10 @@ public class FFmpegUtil {
             cmd.add("+faststart");
             cmd.add(output.toString());
 
-            runCommand(cmd);
+            // AVI转MP4使用动态超时（根据视频时长计算）
+            double videoDuration = getVideoDurationSeconds(actualInput);
+            long dynamicTimeout = computeTranscodeTimeout(videoDuration);
+            runCommand(cmd, dynamicTimeout);
             log.info("AVI转MP4完成: {} (最终码率={}kbps)", output, targetBitrateKbps);
 
         } finally {
@@ -323,7 +411,10 @@ public class FFmpegUtil {
         cmd.add("-y");
         cmd.add(output.toString());
 
-        runCommand(cmd);
+        // 预处理使用动态超时
+        double videoDuration = getVideoDurationSeconds(input);
+        long dynamicTimeout = computeTranscodeTimeout(videoDuration);
+        runCommand(cmd, dynamicTimeout);
         log.info("高码率视频预处理完成: {}", output);
     }
 
@@ -500,7 +591,10 @@ public class FFmpegUtil {
         cmd.add(output.toString());
 
         try {
-            runCommand(cmd);
+            // 转码操作使用动态超时（根据视频时长计算）
+            double videoDuration = getVideoDurationSeconds(input);
+            long dynamicTimeout = computeTranscodeTimeout(videoDuration);
+            runCommand(cmd, dynamicTimeout);
             log.info("视频转码完成: {}", output);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED ||
@@ -538,7 +632,10 @@ public class FFmpegUtil {
         cmd.add(m3u8Path.toString());
 
         try {
-            runCommand(cmd);
+            // 切片操作使用动态超时（根据视频时长计算）
+            double videoDuration = getVideoDurationSeconds(input);
+            long dynamicTimeout = computeSliceTimeout(videoDuration);
+            runCommand(cmd, dynamicTimeout);
 
             if (!Files.exists(m3u8Path)) {
                 throw new BusinessException(ErrorCode.M3U8_GENERATION_FAILED,

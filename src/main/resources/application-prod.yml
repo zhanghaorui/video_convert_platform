@@ -84,9 +84,13 @@ video:
     chunk-size: 50MB                  # 生产环境增大分片
     max-chunks: 2000                  # 增大分片数限制
     ffmpeg:
-      timeout: 600000                 # 生产环境更长超时时间
+      timeout: 300000                 # 基础超时时间(毫秒) - 5分钟
+      transcode-timeout-per-minute: 15000  # VideoToolbox硬件编码：每分钟视频额外15秒
+      slice-timeout-per-minute: 5000       # 切片每分钟视频额外5秒时间
+      validate-timeout: 120000             # 验证操作超时
+      validate-quick-timeout: 60000        # 快速验证超时
       threads: 4                      # FFmpeg并发线程数
-      use-videotoolbox: true          # Mac服务器启用VideoToolbox加速
+      use-videotoolbox: true          # M1 Pro 启用VideoToolbox硬件加速
 
 business:
   callback:

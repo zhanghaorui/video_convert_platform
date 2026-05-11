@@ -49,9 +49,31 @@ public class VideoProcessingProperties {
         private String executablePath = "ffmpeg";
 
         /**
-         * 处理超时时间(毫秒)
+         * 基础超时时间(毫秒) - 作为最小超时时间
          */
         private Long timeout = 300000L;
+
+        /**
+         * 转码操作每分钟视频额外需要的时间(毫秒)
+         * 转码最耗时，建议每分钟视频预留1分钟处理时间
+         */
+        private Long transcodeTimeoutPerMinute = 60000L;
+
+        /**
+         * 切片操作每分钟视频额外需要的时间(毫秒)
+         * 切片使用 -c:v copy 不重新编码，相对较快
+         */
+        private Long sliceTimeoutPerMinute = 10000L;
+
+        /**
+         * 验证操作超时时间(毫秒) - 固定值
+         */
+        private Long validateTimeout = 60000L;
+
+        /**
+         * 快速验证超时时间(毫秒) - 固定值
+         */
+        private Long validateQuickTimeout = 60000L;
 
         /**
          * 并发线程数
@@ -85,9 +107,14 @@ public class VideoProcessingProperties {
             if (other != null) {
                 this.executablePath = other.executablePath;
                 this.timeout = other.timeout;
+                this.transcodeTimeoutPerMinute = other.transcodeTimeoutPerMinute;
+                this.sliceTimeoutPerMinute = other.sliceTimeoutPerMinute;
+                this.validateTimeout = other.validateTimeout;
+                this.validateQuickTimeout = other.validateQuickTimeout;
                 this.threads = other.threads;
                 this.segmentDuration = other.segmentDuration;
                 this.useVideoToolbox = other.useVideoToolbox;
+                this.removeAudio = other.removeAudio;
                 this.quality = other.quality != null ? new Quality(other.quality) : null;
             }
         }
