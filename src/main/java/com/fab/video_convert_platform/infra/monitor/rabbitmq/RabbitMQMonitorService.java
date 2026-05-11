@@ -3,7 +3,6 @@ package com.fab.video_convert_platform.infra.monitor.rabbitmq;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.ClientProperties;
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
