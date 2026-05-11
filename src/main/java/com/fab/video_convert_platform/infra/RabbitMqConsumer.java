@@ -48,10 +48,9 @@ public class RabbitMqConsumer {
         try {
             MqVideoMessage msg = objectMapper.readValue(message.getBody(), MqVideoMessage.class);
             if (!StringUtils.hasText(msg.getProjectNo()) ||
-                !StringUtils.hasText(msg.getFilePath()) ||
-                !StringUtils.hasText(msg.getFileMd5())) {
+                !StringUtils.hasText(msg.getFilePath())) {
                 log.error("Missing required fields in MQ message: {}", msg);
-                retryCountMap.remove(messageId); // 清理缓存
+                retryCountMap.remove(messageId);
                 channel.basicReject(tag, false);
                 return;
             }

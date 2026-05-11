@@ -14,4 +14,3 @@ public interface ICallbackService {
      */
     void notify(VideoUploadTaskView taskView);
 }
-

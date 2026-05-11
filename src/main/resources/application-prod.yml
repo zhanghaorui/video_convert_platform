@@ -36,6 +36,25 @@ mq:
   queues:
     video-task: video.task.queue
 
+# RabbitMQ监控配置（已有的RabbitMQMonitorService需要的配置）
+rabbitmq:
+  monitor:
+    enabled: true
+    host: 172.18.14.228
+    port: 5672
+    username: admin
+    password: admin
+    virtual-host: /video
+    monitoring-interval-seconds: 30
+    timeout-seconds: 10
+    alert:
+      enabled: true
+      dingtalk-webhook: https://oapi.dingtalk.com/robot/send?access_token=your_token  # 填你的钉钉Webhook
+      wechat-webhook: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your_key  # 填你的企微Webhook
+      queue-depth-warning: 1000
+      queue-depth-critical: 5000
+      consumer-warning: 1
+
 # 生产环境NFS配置
 nfs:
   root-path: /Users/fab/nfs_share/prod

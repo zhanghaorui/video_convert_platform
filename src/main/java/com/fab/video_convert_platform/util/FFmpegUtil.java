@@ -516,6 +516,7 @@ public class FFmpegUtil {
      * Slice mp4 file into HLS m3u8 under target directory.
      */
     public Path sliceToM3u8(Path input, Path outputDir) throws IOException, InterruptedException {
+        long startTime = System.currentTimeMillis();
         log.info("开始切片生成M3U8: {} -> {}", input, outputDir);
 
         Files.createDirectories(outputDir);
@@ -544,9 +545,12 @@ public class FFmpegUtil {
                         "M3U8 file not generated: " + m3u8Path);
             }
 
-            log.info("M3U8切片完成: {}", m3u8Path);
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("M3U8切片完成: {}, 耗时: {}ms ({}秒)", m3u8Path, duration, duration / 1000.0);
             return m3u8Path;
         } catch (BusinessException e) {
+            long duration = System.currentTimeMillis() - startTime;
+            log.error("M3U8切片失败, 耗时: {}ms ({}秒)", duration, duration / 1000.0);
             if (e.getErrorCode() == ErrorCode.FFMPEG_COMMAND_FAILED ||
                     e.getErrorCode() == ErrorCode.FFMPEG_TIMEOUT) {
                 throw new BusinessException(ErrorCode.SLICE_FAILED,

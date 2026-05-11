@@ -18,6 +18,6 @@ public class MqVideoMessage {
     private String checkDate; // 新增字段
     /** Absolute path to original video file. */
     private String filePath;
-    /** MD5 checksum provided by upstream. */
+    /** MD5 checksum provided by upstream. 可选，补推消息可能为空 */
     private String fileMd5;
 }
