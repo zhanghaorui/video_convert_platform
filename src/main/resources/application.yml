@@ -2,7 +2,7 @@ spring:
   application:
     name: video-convert-platform
   profiles:
-    active: test
+    active: ${SPRING_PROFILES_ACTIVE:test}
 
   # 通用Web配置
   servlet:
@@ -24,24 +24,24 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
-      maximum-pool-size: 20          # 默认连接池大小
-      minimum-idle: 5                # 默认最小空闲连接
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:20}          # 默认连接池大小
+      minimum-idle: ${DB_MIN_IDLE:5}                # 默认最小空闲连接
 
   # RabbitMQ通用配置
   rabbitmq:
-    connection-timeout: 30000
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
     template:
       retry:
-        enabled: true
-        initial-interval: 1000
-        max-attempts: 3
+        enabled: ${RABBITMQ_RETRY_ENABLED:true}
+        initial-interval: ${RABBITMQ_RETRY_INITIAL_INTERVAL:1000}
+        max-attempts: ${RABBITMQ_RETRY_MAX_ATTEMPTS:3}
 
   sleuth:
     sampler:
       probability: 0.1
 
   zipkin:
-    base-url: http://172.18.14.158:9411
+    base-url: '${ZIPKIN_BASE_URL:http://localhost:9411}'
 
 # MyBatis-Plus通用配置
 mybatis-plus:
@@ -60,7 +60,7 @@ mybatis-plus:
 # 业务队列配置
 mq:
   queues:
-    video-task: video.task.queue      # 默认队列名
+    video-task: ${MQ_VIDEO_TASK_QUEUE:video.task.queue}      # 默认队列名
 
 # 日志切面配置
 logging:
@@ -73,7 +73,7 @@ logging:
 # 视频处理通用配置
 video:
   processing:
-    temp-dir: /tmp/video-processing  # 临时文件目录
+    temp-dir: ${VIDEO_TEMP_DIR:/tmp/video-processing}  # 临时文件目录
     chunk-size: 10MB                 # 分片大小
     max-chunks: 1000                 # 最大分片数
     ffmpeg:

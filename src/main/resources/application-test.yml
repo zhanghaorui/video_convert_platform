@@ -2,35 +2,35 @@ server:
   port: 9092
 
 spring:
-  # 生产环境数据库配置
+  # 测试环境数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://172.18.14.224:3306/video_platform?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
-    username: yfsw_test_user
-    password: Test_yfsw_1234
+    url: '${DB_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:video_platform}?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8}'
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
     hikari:
-      maximum-pool-size: 50         # 生产环境大连接池
-      minimum-idle: 10
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:50}         # 测试环境大连接池
+      minimum-idle: ${DB_MIN_IDLE:10}
 
   # 测试环境RabbitMQ配置
   rabbitmq:
-    host: 172.18.14.228
-    port: 5672
-    username: admin
-    password: admin
-    virtual-host: /video
-    connection-timeout: 30000
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:}
+    password: ${RABBITMQ_PASSWORD:}
+    virtual-host: ${RABBITMQ_VHOST:/video}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
 
 # 测试环境MQ队列配置
 mq:
-  enabled: true  # 启用MQ消费者
+  enabled: ${MQ_ENABLED:true}  # 启用MQ消费者
   queues:
-    video-task: video.task.queue.test
+    video-task: ${MQ_VIDEO_TASK_QUEUE:video.task.queue.test}
 
 # 测试环境NFS配置
 nfs:
-  root-path: /data/nfs-storage/test
-  base-url: https://video.iees.co/test  # 添加 /test 路径以匹配实际文件存储结构
+  root-path: ${NFS_ROOT_PATH:/tmp/video-nfs/test}
+  base-url: '${NFS_BASE_URL:http://localhost:9092/files}'
   url-storage-strategy: ABSOLUTE  # 测试环境使用绝对路径，直接存储完整URL
 
 # 测试环境日志配置
@@ -42,12 +42,12 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
-    name: /var/log/video-platform/test.log
+    name: ${LOG_FILE_PATH:/tmp/video-platform/test.log}
 
 # 测试环境特殊配置
 video:
   processing:
-    temp-dir: /tmp/video-test       # 测试环境临时目录
+    temp-dir: ${VIDEO_TEMP_DIR:/tmp/video-test}       # 测试环境临时目录
     ffmpeg:
       timeout: 300000               # 基础超时时间(毫秒) - 5分钟
       transcode-timeout-per-minute: 40000  # 转码每分钟视频额外40秒时间
