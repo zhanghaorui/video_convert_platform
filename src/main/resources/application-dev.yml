@@ -4,29 +4,29 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/video_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: '${DB_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:video_dev}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}'
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 3
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:3}
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-    virtual-host: /
-    connection-timeout: 30000
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:}
+    password: ${RABBITMQ_PASSWORD:}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
 
 mq:
-  enabled: false  # 开发环境默认禁用MQ，避免启动依赖
+  enabled: ${MQ_ENABLED:false}  # 开发环境默认禁用MQ，避免启动依赖
   queues:
-    video-task: video.task.queue.dev
+    video-task: ${MQ_VIDEO_TASK_QUEUE:video.task.queue.dev}
 
 nfs:
-  root-path: /Users/zhanghaorui/dev/nfs-storage
-  base-url: http://localhost:8080/files
+  root-path: ${NFS_ROOT_PATH:/tmp/video-nfs/dev}
+  base-url: '${NFS_BASE_URL:http://localhost:8080/files}'
   url-storage-strategy: RELATIVE  # 开发环境使用相对路径，便于域名切换
 
 logging:
