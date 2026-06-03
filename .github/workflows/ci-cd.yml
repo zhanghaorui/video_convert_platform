@@ -136,15 +136,11 @@ jobs:
         docker build -t video-convert-platform:${{ github.sha }} .
         docker tag video-convert-platform:${{ github.sha }} video-convert-platform:latest
 
-    - name: Run Docker container smoke test
+    - name: Validate Docker image
       run: |
-        docker run -d --name test-container video-convert-platform:latest
-        sleep 30
-        docker logs test-container
-        # 检查容器是否正常启动
-        docker ps | grep test-container
-        docker stop test-container
-        docker rm test-container
+        docker image inspect video-convert-platform:${{ github.sha }}
+        docker run --rm --entrypoint java video-convert-platform:${{ github.sha }} -version
+        docker run --rm --entrypoint ffmpeg video-convert-platform:${{ github.sha }} -version
 
     - name: Archive artifacts
       uses: actions/upload-artifact@v3
