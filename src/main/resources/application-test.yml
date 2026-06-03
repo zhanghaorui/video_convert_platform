@@ -21,9 +21,12 @@ spring:
     virtual-host: ${RABBITMQ_VHOST:/video}
     connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
 
+  zipkin:
+    enabled: false
+
 # 测试环境MQ队列配置
 mq:
-  enabled: ${MQ_ENABLED:true}  # 启用MQ消费者
+  enabled: ${MQ_ENABLED:false} # 测试环境默认禁用MQ消费者，避免上下文测试依赖RabbitMQ
   queues:
     video-task: ${MQ_VIDEO_TASK_QUEUE:video.task.queue.test}
 

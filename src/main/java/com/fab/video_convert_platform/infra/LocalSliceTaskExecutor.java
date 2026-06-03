@@ -9,6 +9,7 @@ import com.fab.video_convert_platform.domain.service.VideoTaskDomainService;
 import com.fab.video_convert_platform.service.ITaskLogService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -65,7 +66,15 @@ public class LocalSliceTaskExecutor {
     @PreDestroy
     public void shutdown() {
         running.set(false);
-        sliceExecutor.shutdown();
+        sliceExecutor.shutdownNow();
+        try {
+            if (!sliceExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                log.warn("slice executor did not terminate within timeout");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("interrupted while shutting down slice executor");
+        }
     }
 
     private void work() {
