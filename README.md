@@ -3,6 +3,19 @@
 A self-hosted medical video archiving and transcoding platform built with
 Spring Boot, FFmpeg, MySQL, RabbitMQ, and Prometheus.
 
+## Public Repository Scope
+
+This repository contains only the public, generic implementation of a video
+archiving and transcoding platform.
+
+Deployment-specific database schemas, production migrations, internal
+integrations, credentials, hostnames, private storage paths, production data,
+and company-specific operational details are intentionally excluded.
+
+Do not submit real patient data, production credentials, internal network
+addresses, private domains, confidential callback payloads, or business-specific
+configuration to this repository.
+
 ## Features
 
 - Large video upload through multipart HTTP APIs
@@ -49,7 +62,7 @@ and exposes playback URLs through the API.
 | --- | ---: | --- | --- |
 | `dev` | `8080` | disabled | `/tmp/video-nfs/dev` |
 | `test` | `9092` | enabled | `/tmp/video-nfs/test` |
-| `prod` | `9091` | enabled | `/data/video-platform/nfs/prod` |
+| `prod` | `9091` | disabled | `/tmp/video-nfs/prod` |
 
 `test` is the default active profile in `application.yml`. For local manual
 testing, prefer the `dev` profile unless you have MySQL and RabbitMQ prepared.
@@ -63,31 +76,31 @@ configuration overrides:
 | --- | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | Runtime profile | `dev` |
 | `DB_URL` | Full JDBC URL | `jdbc:mysql://localhost:3306/video_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true` |
-| `DB_USERNAME` | MySQL username | `video_user` |
-| `DB_PASSWORD` | MySQL password | `change-me` |
+| `DB_USERNAME` | MySQL username | `video_app` |
+| `DB_PASSWORD` | MySQL password | `replace-with-local-password` |
 | `RABBITMQ_HOST` | RabbitMQ host | `localhost` |
 | `RABBITMQ_PORT` | RabbitMQ port | `5672` |
-| `RABBITMQ_USERNAME` | RabbitMQ username | `guest` |
-| `RABBITMQ_PASSWORD` | RabbitMQ password | `guest` |
+| `RABBITMQ_USERNAME` | RabbitMQ username | `rabbitmq_app` |
+| `RABBITMQ_PASSWORD` | RabbitMQ password | `replace-with-local-password` |
 | `RABBITMQ_VHOST` | RabbitMQ virtual host | `/` |
 | `MQ_ENABLED` | Enable MQ consumer | `false` |
-| `MQ_VIDEO_TASK_QUEUE` | Video task queue name | `video.task.queue.dev` |
+| `MQ_VIDEO_TASK_QUEUE` | Video task queue name | `video.task.queue` |
 | `NFS_ROOT_PATH` | Archive root path | `/tmp/video-nfs/dev` |
 | `NFS_BASE_URL` | Base URL for playback links | `http://localhost:8080/files` |
 | `VIDEO_TEMP_DIR` | FFmpeg temporary directory | `/tmp/video-processing` |
 
-Database migration scripts are not currently packaged in this repository. Before
-starting the service against a real database, create the tables used by the
-domain and mapper classes, including project configuration, upload tasks,
-archive files, task logs, and task errors.
+Real database schema and migration files are intentionally not packaged in this
+public repository. Bring your own development schema for local experiments, and
+do not publish production DDL, migrated data, or company-specific data model
+details here.
 
 ## Quick Start
 
 ```bash
 export SPRING_PROFILES_ACTIVE=dev
 export DB_URL='jdbc:mysql://localhost:3306/video_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true'
-export DB_USERNAME='video_user'
-export DB_PASSWORD='change-me'
+export DB_USERNAME='video_app'
+export DB_PASSWORD='replace-with-local-password'
 export MQ_ENABLED=false
 export NFS_ROOT_PATH=/tmp/video-nfs/dev
 export NFS_BASE_URL=http://localhost:8080/files
@@ -177,8 +190,8 @@ When `mq.enabled=true`, the consumer listens on `mq.queues.video-task`.
   "patientCode": "SUBJ001",
   "tpStage": "V1",
   "visit": "Screening",
-  "checkDate": "2026-06-02",
-  "filePath": "/incoming/source.mp4",
+  "checkDate": "2026-01-01",
+  "filePath": "/tmp/video-inbox/source.mp4",
   "fileMd5": "optional-md5"
 }
 ```
@@ -204,7 +217,10 @@ the configured archive root before processing it.
 - Actuator exposes `health`, `info`, `metrics`, and `prometheus`.
 - Cleanup runs on `maintenance.cleanup.cron`.
 - Cleanup defaults to `dry-run=true`; turn it off only after reviewing logs.
-- Production profile stores absolute playback URLs by default.
+- The `prod` profile uses safe local defaults in this public repository; provide
+  real deployment values through environment variables outside Git.
+- Set `MQ_ENABLED=true` explicitly when a deployment should consume RabbitMQ
+  tasks.
 - Development profile stores relative playback URLs and builds full URLs at read
   time using `nfs.base-url`.
 

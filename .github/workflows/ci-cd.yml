@@ -122,39 +122,3 @@ jobs:
       with:
         name: jar-artifact
         path: target/*.jar
-
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-    
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: jar-artifact
-
-    - name: Deploy to staging
-      run: |
-        echo "Deploying to staging environment..."
-        # 这里添加实际的部署脚本
-
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/master'
-    environment: production
-    
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: jar-artifact
-
-    - name: Deploy to production
-      run: |
-        echo "Deploying to production environment..."
-        # 这里添加实际的部署脚本

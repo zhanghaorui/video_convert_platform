@@ -25,27 +25,27 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:}
     password: ${RABBITMQ_PASSWORD:}
-    virtual-host: ${RABBITMQ_VHOST:/video}
+    virtual-host: ${RABBITMQ_VHOST:/}
     connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
     publisher-confirms: ${RABBITMQ_PUBLISHER_CONFIRMS:true}        # 生产环境启用确认机制
     publisher-returns: ${RABBITMQ_PUBLISHER_RETURNS:true}
 
 # 生产环境MQ队列配置
 mq:
-  enabled: ${MQ_ENABLED:true}  # 启用MQ消费者
+  enabled: ${MQ_ENABLED:false}  # 公开默认不启用MQ消费者，部署时显式开启
   queues:
     video-task: ${MQ_VIDEO_TASK_QUEUE:video.task.queue}
 
 # 生产环境NFS配置
 nfs:
-  root-path: ${NFS_ROOT_PATH:/data/video-platform/nfs/prod}
+  root-path: ${NFS_ROOT_PATH:/tmp/video-nfs/prod}
   base-url: '${NFS_BASE_URL:https://video.example.com/prod}'
   url-storage-strategy: ABSOLUTE  # 生产环境使用绝对路径，性能更好
 
 # 生产环境日志配置 - 只覆盖需要调整的部分
 logging:
   level:
-    com.fab.video_convert_platform: INFO
+    com.example.video_convert_platform: INFO
     org.springframework: WARN
     org.mybatis: WARN
     com.zaxxer.hikari: WARN
@@ -54,24 +54,24 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
   file:
-    name: ${LOG_FILE_PATH:/var/log/video-platform/application.log}
+    name: ${LOG_FILE_PATH:./logs/prod/application.log}
     max-size: 100MB
     max-history: 30
 
 # 生产环境性能调优 - 只覆盖需要优化的参数
 video:
   processing:
-    temp-dir: ${VIDEO_TEMP_DIR:/data/video-platform/video-processing}  # 生产环境高性能存储
+    temp-dir: ${VIDEO_TEMP_DIR:/tmp/video-processing/prod}  # 部署时可覆盖为高性能存储
     chunk-size: 50MB                  # 生产环境增大分片
     max-chunks: 2000                  # 增大分片数限制
     ffmpeg:
       timeout: 300000                 # 基础超时时间(毫秒) - 5分钟
-      transcode-timeout-per-minute: 15000  # VideoToolbox硬件编码：每分钟视频额外15秒
+      transcode-timeout-per-minute: 15000  # 转码每分钟视频额外15秒
       slice-timeout-per-minute: 5000       # 切片每分钟视频额外5秒时间
       validate-timeout: 120000             # 验证操作超时
       validate-quick-timeout: 60000        # 快速验证超时
       threads: 4                      # FFmpeg并发线程数
-      use-videotoolbox: true          # M1 Pro 启用VideoToolbox硬件加速
+      use-videotoolbox: ${VIDEO_USE_VIDEOTOOLBOX:false}  # 仅在兼容主机上显式启用硬件加速
 
 business:
   callback:
