@@ -13,7 +13,7 @@ integrations, credentials, hostnames, private storage paths, production data,
 and company-specific operational details are intentionally excluded.
 
 Do not submit real patient data, production credentials, internal network
-addresses, private domains, confidential callback payloads, or business-specific
+addresses, private domains, confidential webhook payloads, or business-specific
 configuration to this repository.
 
 ## Features
@@ -24,7 +24,7 @@ configuration to this repository.
 - FFmpeg-based validation, transcoding, and HLS slicing
 - Original video archiving to NFS or local archive storage
 - RabbitMQ-driven asynchronous video task processing
-- Project-level archive roots and callback delivery
+- Project-level archive roots and optional outbound webhook notification
 - Play URL query APIs for task and business identifiers
 - Prometheus metrics and Spring Boot Actuator endpoints
 - Scheduled dry-run cleanup of orphan chunk and original files
@@ -38,7 +38,7 @@ Client / MQ Producer
   -> NFS / local archive storage
   -> FFmpeg processing
   -> HLS output
-  -> Callback service
+  -> Optional webhook notification
   -> Prometheus / Actuator
 ```
 
@@ -88,6 +88,7 @@ configuration overrides:
 | `NFS_ROOT_PATH` | Archive root path | `/tmp/video-nfs/dev` |
 | `NFS_BASE_URL` | Base URL for playback links | `http://localhost:8080/files` |
 | `VIDEO_TEMP_DIR` | FFmpeg temporary directory | `/tmp/video-processing` |
+| `WEBHOOK_CALLBACK_ENABLED` | Enable optional outbound webhook notification | `false` |
 
 Real database schema and migration files are intentionally not packaged in this
 public repository. Bring your own development schema for local experiments, and
@@ -199,6 +200,15 @@ When `mq.enabled=true`, the consumer listens on `mq.queues.video-task`.
 `projectNo` and `filePath` are required. The service copies the source file into
 the configured archive root before processing it.
 
+## Optional Webhook Notification
+
+Outbound webhook notification is disabled by default. Set
+`WEBHOOK_CALLBACK_ENABLED=true` and configure a project-level callback URL only
+when your deployment needs to notify another system after processing completes.
+
+Keep webhook payloads generic. Do not commit production callback URLs,
+company-specific payload contracts, credentials, or patient data.
+
 ## Processing Flow
 
 ```text
@@ -208,7 +218,8 @@ the configured archive root before processing it.
 4. Generate low and standard quality outputs.
 5. Slice each output into HLS files under slice_low and slice_standard.
 6. Persist archive metadata and playback URLs.
-7. Publish completion events and deliver project callback when configured.
+7. Publish completion events; send optional webhook only when explicitly enabled
+   and configured.
 8. Record logs, failures, and metrics for operations.
 ```
 
@@ -221,6 +232,8 @@ the configured archive root before processing it.
   real deployment values through environment variables outside Git.
 - Set `MQ_ENABLED=true` explicitly when a deployment should consume RabbitMQ
   tasks.
+- Set `WEBHOOK_CALLBACK_ENABLED=true` explicitly when a deployment should send
+  outbound webhook notifications.
 - Development profile stores relative playback URLs and builds full URLs at read
   time using `nfs.base-url`.
 

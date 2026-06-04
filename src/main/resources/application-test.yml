@@ -61,4 +61,5 @@ video:
 
 business:
   callback:
-    retry-times: 2                  # 测试环境减少重试次数
+    enabled: ${WEBHOOK_CALLBACK_ENABLED:false}
+    retry-times: ${WEBHOOK_CALLBACK_RETRY_TIMES:2} # 测试环境减少重试次数

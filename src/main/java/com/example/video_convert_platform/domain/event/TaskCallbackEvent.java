@@ -5,7 +5,7 @@ import com.example.video_convert_platform.domain.VideoUploadTaskView;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * Event indicating the task has finished processing and should trigger callback.
+ * Event indicating the task has finished processing and may trigger an optional webhook.
  */
 public class TaskCallbackEvent implements DomainEvent {
     private final VideoUploadTaskView taskView;

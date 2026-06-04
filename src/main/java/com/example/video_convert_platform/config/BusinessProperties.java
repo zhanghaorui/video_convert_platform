@@ -42,6 +42,11 @@ public class BusinessProperties {
     @Data
     public static class Callback {
         /**
+         * Whether optional outbound webhook notification is enabled.
+         */
+        private Boolean enabled = false;
+
+        /**
          * 重试次数
          */
         private Integer retryTimes = 3;
@@ -56,6 +61,7 @@ public class BusinessProperties {
 
         public Callback(Callback other) {
             if (other != null) {
+                this.enabled = other.enabled;
                 this.retryTimes = other.retryTimes;
                 this.timeout = other.timeout;
             }

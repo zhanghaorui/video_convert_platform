@@ -75,8 +75,9 @@ video:
 
 business:
   callback:
-    retry-times: 5                    # 生产环境增加重试次数
-    timeout: 60000                    # 增加超时时间
+    enabled: ${WEBHOOK_CALLBACK_ENABLED:false} # 部署时显式开启
+    retry-times: ${WEBHOOK_CALLBACK_RETRY_TIMES:5} # 生产环境增加重试次数
+    timeout: ${WEBHOOK_CALLBACK_TIMEOUT_MS:60000} # 增加超时时间
   archive:
     batch-size: 100                   # 批处理大小
     parallel-workers: 8               # 并发处理线程数

@@ -3,6 +3,7 @@ package com.example.video_convert_platform.service.impl;
 import com.example.video_convert_platform.domain.ProjectConfig;
 import com.example.video_convert_platform.domain.VideoUploadTaskView;
 import com.example.video_convert_platform.domain.infrastructure.CallbackInfrastructure;
+import com.example.video_convert_platform.config.BusinessProperties;
 import com.example.video_convert_platform.service.ICallbackService;
 import com.example.video_convert_platform.service.IProjectService;
 import com.example.video_convert_platform.service.ITaskLogService;
@@ -21,17 +22,27 @@ public class CallbackServiceImpl implements ICallbackService {
     private final IProjectService projectService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final CallbackInfrastructure callbackInfrastructure;
+    @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
+    private final BusinessProperties businessProperties;
 
     public CallbackServiceImpl(ITaskLogService taskLogService,
                                IProjectService projectService,
-                               CallbackInfrastructure callbackInfrastructure) {
+                               CallbackInfrastructure callbackInfrastructure,
+                               BusinessProperties businessProperties) {
         this.taskLogService = taskLogService;
         this.projectService = projectService;
         this.callbackInfrastructure = callbackInfrastructure;
+        this.businessProperties = businessProperties;
     }
 
     @Override
     public void notify(VideoUploadTaskView taskView) {
+        BusinessProperties.Callback callback = businessProperties.getCallback();
+        if (callback == null || !Boolean.TRUE.equals(callback.getEnabled())) {
+            taskLogService.info(taskView.getId(), "Optional webhook callback disabled");
+            return;
+        }
+
         // 检查任务来源，只对HTTP来源的任务进行回调
         if (taskView.isMqSource()) {
             taskLogService.info(taskView.getId(), "MQ来源任务，跳过HTTP回调");

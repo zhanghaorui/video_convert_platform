@@ -7,7 +7,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Triggers business callbacks after task completion.
+ * Handles optional outbound webhook notifications after task completion.
  */
 @Slf4j
 @Component
@@ -25,7 +25,7 @@ public class TaskCallbackEventListener {
             // event.getTask() 现在返回 VideoUploadTaskView，与接口 notify(VideoUploadTaskView) 匹配
             callbackService.notify(event.getTask());
         } catch (RuntimeException e) {
-            log.error("业务回调失败", e);
+            log.error("Optional webhook notification failed", e);
         }
     }
 }
