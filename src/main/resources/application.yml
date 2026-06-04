@@ -93,8 +93,9 @@ video:
 # 业务配置
 business:
   callback:
-    retry-times: 3                   # 回调重试次数
-    timeout: 30000                   # 回调超时时间(毫秒)
+    enabled: ${WEBHOOK_CALLBACK_ENABLED:false} # 公开默认关闭，可按部署显式开启
+    retry-times: ${WEBHOOK_CALLBACK_RETRY_TIMES:3} # 可选webhook重试次数
+    timeout: ${WEBHOOK_CALLBACK_TIMEOUT_MS:30000} # 可选webhook超时时间(毫秒)
   archive:
     enable-md5-check: true           # 是否启用MD5校验
     cleanup-temp-files: true         # 是否自动清理临时文件

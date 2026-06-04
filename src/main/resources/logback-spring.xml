@@ -151,7 +151,7 @@
     </logger>
 
     <!-- SQL日志Logger -->
-    <logger name="com.fab.video_convert_platform.mapper" level="DEBUG" additivity="false">
+    <logger name="com.example.video_convert_platform.mapper" level="DEBUG" additivity="false">
         <appender-ref ref="SQL_FILE"/>
         <springProfile name="dev,test">
             <appender-ref ref="CONSOLE"/>
@@ -160,7 +160,7 @@
 
     <!-- MyBatis SQL日志 -->
     <springProfile name="dev,test">
-        <logger name="com.fab.video_convert_platform.mapper" level="DEBUG"/>
+        <logger name="com.example.video_convert_platform.mapper" level="DEBUG"/>
         <logger name="org.apache.ibatis" level="DEBUG"/>
         <logger name="java.sql.Connection" level="DEBUG"/>
         <logger name="java.sql.Statement" level="DEBUG"/>
@@ -181,7 +181,7 @@
     <logger name="com.zaxxer.hikari" level="INFO"/>
 
     <!-- 业务包日志 -->
-    <logger name="com.fab.video_convert_platform" level="DEBUG"/>
+    <logger name="com.example.video_convert_platform" level="DEBUG"/>
 
     <!-- 根日志配置 -->
     <springProfile name="dev">

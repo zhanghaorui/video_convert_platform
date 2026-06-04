@@ -9,7 +9,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.fab</groupId>
+    <groupId>com.example</groupId>
     <artifactId>video-convert-platform</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>

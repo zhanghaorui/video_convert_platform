@@ -31,7 +31,7 @@ nfs:
 
 logging:
   level:
-    com.fab.video_convert_platform: DEBUG
+    com.example.video_convert_platform: DEBUG
     org.springframework.web: DEBUG
     org.mybatis: DEBUG
   pattern:
