@@ -1,4 +1,4 @@
-FROM ghcr.io/adoptium/temurin:8-jre-jammy
+FROM eclipse-temurin:8-jre-jammy
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
