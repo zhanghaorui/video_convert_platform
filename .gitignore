@@ -96,6 +96,8 @@ Thumbs.db
 # Documentation files
 *.md
 !README.md
+!SECURITY.md
+!CONTRIBUTING.md
 docs/
 !.github/**/*.md
 
