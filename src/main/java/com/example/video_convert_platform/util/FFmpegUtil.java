@@ -422,7 +422,15 @@ public class FFmpegUtil {
      * Probe video resolution using ffprobe with timeout.
      */
     public int[] getResolution(Path input) throws IOException, InterruptedException {
-        log.info("获取视频分辨率: {}", input);
+        VideoStreamInfo info = probeVideoStreamInfo(input);
+        return info.getDisplayResolution();
+    }
+
+    /**
+     * Probe video stream geometry and rotation metadata using ffprobe with timeout.
+     */
+    public VideoStreamInfo probeVideoStreamInfo(Path input) throws IOException, InterruptedException {
+        log.info("获取视频流信息: {}", input);
 
         List<String> cmd = new ArrayList<>();
         cmd.add("ffprobe");
@@ -431,9 +439,9 @@ public class FFmpegUtil {
         cmd.add("-select_streams");
         cmd.add("v:0");
         cmd.add("-show_entries");
-        cmd.add("stream=width,height");
+        cmd.add("stream=width,height:stream_tags=rotate:stream_side_data=rotation");
         cmd.add("-of");
-        cmd.add("csv=s=x:p=0");
+        cmd.add("default=noprint_wrappers=1");
         cmd.add(input.toString());
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -472,48 +480,12 @@ public class FFmpegUtil {
                     "Failed to get video resolution, ffprobe exit code: " + exitCode);
         }
 
-        String[] parts = result.split("x");
-        if (parts.length != 2) {
-            log.warn("FFprobe输出格式异常，尝试修复: '{}'", result);
-            // 处理重复输出的情况，尝试按行分割取第一个有效行
-            String[] lines = result.split("\\r?\\n");
-            String validLine = null;
-            for (String line : lines) {
-                line = line.trim();
-                if (!line.isEmpty() && line.contains("x")) {
-                    validLine = line;
-                    log.info("找到有效分辨率行: '{}'", validLine);
-                    break;
-                }
-            }
-            
-            if (validLine != null) {
-                parts = validLine.split("x");
-                if (parts.length == 2) {
-                    // 重新处理有效行
-                    result = validLine;
-                } else {
-                    throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
-                            "Unexpected ffprobe output format: '" + result + "'");
-                }
-            } else {
-                throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
-                        "Unexpected ffprobe output format: '" + result + "'");
-            }
-        }
-
-        int w, h;
-        try {
-            w = Integer.parseInt(parts[0].trim());
-            h = Integer.parseInt(parts[1].trim());
-        } catch (NumberFormatException e) {
-            log.error("解析视频分辨率失败: {}", e.getMessage());
-            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
-                    "Malformed ffprobe output: non-numeric resolution '" + result + "'. Error: " + e.getMessage());
-        }
-
-        log.info("视频分辨率: {}x{}", w, h);
-        return new int[]{w, h};
+        VideoStreamInfo info = parseVideoStreamInfo(result);
+        log.info("视频流信息: coded={}x{}, display={}x{}, rotation={}度",
+                info.getCodedWidth(), info.getCodedHeight(),
+                info.getDisplayWidth(), info.getDisplayHeight(),
+                info.getRotationDegrees());
+        return info;
     }
 
     /**
@@ -556,7 +528,7 @@ public class FFmpegUtil {
         cmd.add("-i");
         cmd.add(input.toString());
         cmd.add("-vf");
-        cmd.add("scale=" + width + ":" + height);
+        cmd.add(buildScaleFilter(width, height));
         cmd.add("-c:v");
         if (properties.getFfmpeg().isUseVideoToolbox()) {
             cmd.add("h264_videotoolbox");
@@ -588,6 +560,8 @@ public class FFmpegUtil {
         }
         cmd.add("-threads");
         cmd.add(String.valueOf(properties.getFfmpeg().getThreads()));
+        cmd.add("-metadata:s:v:0");
+        cmd.add("rotate=0");
         cmd.add(output.toString());
 
         try {
@@ -721,6 +695,159 @@ public class FFmpegUtil {
                 log.warn("解析码率失败: {}", line);
                 return null;
             }
+        }
+    }
+
+    static VideoStreamInfo parseVideoStreamInfo(String result) {
+        if (result == null || result.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                    "Unexpected ffprobe output format: '" + result + "'");
+        }
+
+        Integer width = null;
+        Integer height = null;
+        int rotation = 0;
+        String[] lines = result.split("\\r?\\n");
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isEmpty() || line.startsWith("[") || !line.contains("=")) {
+                continue;
+            }
+
+            int separator = line.indexOf('=');
+            String key = line.substring(0, separator).trim();
+            String value = line.substring(separator + 1).trim();
+            if ("width".equals(key) && width == null) {
+                width = parsePositiveInteger(value, "width", result);
+            } else if ("height".equals(key) && height == null) {
+                height = parsePositiveInteger(value, "height", result);
+            } else if ("rotation".equals(key) || "rotate".equals(key) || key.endsWith(":rotate")) {
+                rotation = normalizeRotationDegrees(value);
+            }
+        }
+
+        if (width == null || height == null) {
+            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                    "Unexpected ffprobe output format: '" + result + "'");
+        }
+
+        return new VideoStreamInfo(width, height, rotation);
+    }
+
+    public static int[] orientTargetDimensions(int width, int height, int displayWidth, int displayHeight) {
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("目标宽高必须大于0");
+        }
+        if (displayWidth > 0 && displayHeight > 0 && displayWidth < displayHeight && width > height) {
+            return new int[]{height, width};
+        }
+        return new int[]{width, height};
+    }
+
+    public static int[] computeBoundedDisplayDimensions(int displayWidth, int displayHeight,
+                                                        int landscapeMaxWidth, int landscapeMaxHeight) {
+        if (displayWidth <= 0 || displayHeight <= 0 ||
+                landscapeMaxWidth <= 0 || landscapeMaxHeight <= 0) {
+            throw new IllegalArgumentException("宽高必须大于0");
+        }
+
+        int maxWidth = landscapeMaxWidth;
+        int maxHeight = landscapeMaxHeight;
+        if (displayWidth < displayHeight) {
+            maxWidth = landscapeMaxHeight;
+            maxHeight = landscapeMaxWidth;
+        }
+
+        if (displayWidth <= maxWidth && displayHeight <= maxHeight) {
+            return new int[]{displayWidth, displayHeight};
+        }
+
+        double scale = Math.min(maxWidth * 1.0 / displayWidth, maxHeight * 1.0 / displayHeight);
+        int targetWidth = toEvenDimension((int) Math.round(displayWidth * scale));
+        int targetHeight = toEvenDimension((int) Math.round(displayHeight * scale));
+        return new int[]{targetWidth, targetHeight};
+    }
+
+    static String buildScaleFilter(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("目标宽高必须大于0");
+        }
+        return "scale=" + width + ":" + height + ",setsar=1";
+    }
+
+    private static int parsePositiveInteger(String value, String field, String fullOutput) {
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed <= 0) {
+                throw new NumberFormatException(field + " must be positive");
+            }
+            return parsed;
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
+                    "Malformed ffprobe output: non-numeric " + field + " '" + fullOutput
+                            + "'. Error: " + e.getMessage());
+        }
+    }
+
+    private static int normalizeRotationDegrees(String value) {
+        try {
+            int rounded = (int) Math.round(Double.parseDouble(value));
+            return ((rounded % 360) + 360) % 360;
+        } catch (NumberFormatException e) {
+            log.warn("解析视频旋转角度失败: {}", value);
+            return 0;
+        }
+    }
+
+    private static int toEvenDimension(int dimension) {
+        int adjusted = Math.max(2, dimension);
+        return adjusted % 2 == 0 ? adjusted : adjusted - 1;
+    }
+
+    public static final class VideoStreamInfo {
+        private final int codedWidth;
+        private final int codedHeight;
+        private final int rotationDegrees;
+
+        public VideoStreamInfo(int codedWidth, int codedHeight, int rotationDegrees) {
+            if (codedWidth <= 0 || codedHeight <= 0) {
+                throw new IllegalArgumentException("视频宽高必须大于0");
+            }
+            this.codedWidth = codedWidth;
+            this.codedHeight = codedHeight;
+            this.rotationDegrees = ((rotationDegrees % 360) + 360) % 360;
+        }
+
+        public int getCodedWidth() {
+            return codedWidth;
+        }
+
+        public int getCodedHeight() {
+            return codedHeight;
+        }
+
+        public int getRotationDegrees() {
+            return rotationDegrees;
+        }
+
+        public boolean hasRotationMetadata() {
+            return rotationDegrees != 0;
+        }
+
+        public int getDisplayWidth() {
+            return isQuarterTurn() ? codedHeight : codedWidth;
+        }
+
+        public int getDisplayHeight() {
+            return isQuarterTurn() ? codedWidth : codedHeight;
+        }
+
+        public int[] getDisplayResolution() {
+            return new int[]{getDisplayWidth(), getDisplayHeight()};
+        }
+
+        private boolean isQuarterTurn() {
+            return rotationDegrees == 90 || rotationDegrees == 270;
         }
     }
 }

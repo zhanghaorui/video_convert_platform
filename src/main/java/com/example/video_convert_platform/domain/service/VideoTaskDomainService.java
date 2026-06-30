@@ -15,6 +15,7 @@ import com.example.video_convert_platform.domain.repository.VideoUploadTaskRepos
 import com.example.video_convert_platform.util.ArchivePathUtil;
 import com.example.video_convert_platform.util.DigestUtil;
 import com.example.video_convert_platform.util.FFmpegUtil;
+import com.example.video_convert_platform.util.FFmpegUtil.VideoStreamInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
@@ -92,8 +93,9 @@ public class VideoTaskDomainService {
             // 2. 预处理视频（格式转换、分辨率调整）
             Path processedVideo = preprocessVideo(task, inputVideo, tempFiles);
 
-            // 3. 获取视频分辨率信息
-            int[] resolution = getVideoResolution(task, processedVideo);
+            // 3. 获取视频显示分辨率信息
+            VideoStreamInfo streamInfo = ffmpegUtil.probeVideoStreamInfo(processedVideo);
+            int[] resolution = getVideoResolution(task, streamInfo);
 
             // 新增：获取原始（预处理后）视频码率，供自适应码率策略使用
             int originalBitrateKbps = 0;
@@ -116,7 +118,7 @@ public class VideoTaskDomainService {
             }
 
             // 4. 生成多质量切片（传入原始码率）
-            generateMultiQualitySlices(config, task, processedVideo, resolution, originalBitrateKbps);
+            generateMultiQualitySlices(config, task, processedVideo, streamInfo, resolution, originalBitrateKbps);
 
             // 5. 标记任务完成
             task.markFinished();
@@ -241,16 +243,19 @@ public class VideoTaskDomainService {
         int[] resolution = ffmpegUtil.getResolution(input);
         int width = resolution[0];
         int height = resolution[1];
+        int[] targetResolution = FFmpegUtil.computeBoundedDisplayDimensions(width, height, 1920, 1080);
+        int targetWidth = targetResolution[0];
+        int targetHeight = targetResolution[1];
 
-        if (width <= 1920 && height <= 1080) {
+        if (targetWidth == width && targetHeight == height) {
             return input;
         }
 
         eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
-            String.format("检测到高分辨率视频(%dx%d)，开始降级到1080p", width, height)));
+            String.format("检测到高分辨率视频(%dx%d)，开始降级到%dx%d", width, height, targetWidth, targetHeight)));
         Path scaledPath = input.resolveSibling("scaled_" + System.currentTimeMillis() + ".mp4");
 
-        ffmpegUtil.transcode(input, scaledPath, 1920, 1080);
+        ffmpegUtil.transcode(input, scaledPath, targetWidth, targetHeight);
         tempFiles.add(scaledPath);
 
         eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
@@ -261,17 +266,19 @@ public class VideoTaskDomainService {
     /**
      * 获取视频分辨率信息
      */
-    private int[] getVideoResolution(VideoUploadTask task, Path video)
-            throws IOException, InterruptedException {
+    private int[] getVideoResolution(VideoUploadTask task, VideoStreamInfo streamInfo) {
 
-        int[] resolution = ffmpegUtil.getResolution(video);
+        int[] resolution = streamInfo.getDisplayResolution();
         if (resolution.length < 2) {
             throw new BusinessException(ErrorCode.VIDEO_RESOLUTION_ERROR,
                 "无法获取视频分辨率信息");
         }
 
         eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
-            String.format("视频分辨率: %dx%d", resolution[0], resolution[1])));
+            String.format("视频显示分辨率: %dx%d, 编码分辨率: %dx%d, 旋转角度: %d",
+                resolution[0], resolution[1],
+                streamInfo.getCodedWidth(), streamInfo.getCodedHeight(),
+                streamInfo.getRotationDegrees())));
         return resolution;
     }
 
@@ -279,14 +286,16 @@ public class VideoTaskDomainService {
      * 生成多质量切片
      */
     private void generateMultiQualitySlices(ProjectConfig config, VideoUploadTask task,
-                                          Path input, int[] originalResolution, int originalBitrateKbps)
+                                          Path input, VideoStreamInfo streamInfo,
+                                          int[] originalResolution, int originalBitrateKbps)
             throws IOException, InterruptedException {
 
         int originalWidth = originalResolution[0];
         int originalHeight = originalResolution[1];
 
         for (VideoQuality quality : VideoQuality.values()) {
-            generateQualitySlice(config, task, input, quality, originalWidth, originalHeight, originalBitrateKbps);
+            generateQualitySlice(config, task, input, quality, streamInfo.hasRotationMetadata(),
+                    originalWidth, originalHeight, originalBitrateKbps);
         }
     }
 
@@ -294,12 +303,19 @@ public class VideoTaskDomainService {
      * 生成指定质量的切片
      */
     private void generateQualitySlice(ProjectConfig config, VideoUploadTask task, Path input,
-                                    VideoQuality quality, int originalWidth, int originalHeight, int originalBitrateKbps)
+                                    VideoQuality quality, boolean hasRotationMetadata,
+                                    int originalWidth, int originalHeight, int originalBitrateKbps)
             throws IOException, InterruptedException {
 
         String qualityName = quality.getName();
-        int targetWidth = quality.getWidth() > 0 ? quality.getWidth() : originalWidth;
-        int targetHeight = quality.getHeight() > 0 ? quality.getHeight() : originalHeight;
+        int targetWidth = originalWidth;
+        int targetHeight = originalHeight;
+        if (quality.getWidth() > 0 && quality.getHeight() > 0) {
+            int[] orientedTarget = FFmpegUtil.orientTargetDimensions(
+                    quality.getWidth(), quality.getHeight(), originalWidth, originalHeight);
+            targetWidth = orientedTarget[0];
+            targetHeight = orientedTarget[1];
+        }
 
         Span span = tracer.nextSpan().name("ffmpeg_" + qualityName).start();
         span.tag("task_id", String.valueOf(task.getId()));
@@ -317,7 +333,8 @@ public class VideoTaskDomainService {
             try {
                 Path sourceForSlice;
                 boolean noScaleNeeded = (targetWidth == originalWidth && targetHeight == originalHeight);
-                if ("normal".equalsIgnoreCase(qualityName) && noScaleNeeded) {
+                boolean canCopyNormal = "normal".equalsIgnoreCase(qualityName) && noScaleNeeded && !hasRotationMetadata;
+                if (canCopyNormal) {
                     eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
                         "normal质量无需缩放，跳过重编码，直接切片保留原码率"));
                     sourceForSlice = input;
@@ -328,11 +345,12 @@ public class VideoTaskDomainService {
                     Integer targetKbps = null;
                     if ("low".equalsIgnoreCase(qualityName)) {
                         targetKbps = 800;
-                    } else if ("normal".equalsIgnoreCase(qualityName) && !noScaleNeeded) {
+                    } else if ("normal".equalsIgnoreCase(qualityName) && (!noScaleNeeded || hasRotationMetadata)) {
                         targetKbps = computeAdaptiveBitrate(originalBitrateKbps, originalWidth, originalHeight, targetWidth, targetHeight);
                         eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
-                            String.format("normal缩放触发自适应码率: %d kbps (原始=%d kbps, %dx%d -> %dx%d)",
-                                targetKbps, originalBitrateKbps, originalWidth, originalHeight, targetWidth, targetHeight)));
+                            String.format("normal转码触发自适应码率: %d kbps (原始=%d kbps, %dx%d -> %dx%d, rotationMetadata=%s)",
+                                targetKbps, originalBitrateKbps, originalWidth, originalHeight,
+                                targetWidth, targetHeight, hasRotationMetadata)));
                     }
                     ffmpegUtil.transcode(input, tempTranscoded, targetWidth, targetHeight, targetKbps);
                     sourceForSlice = tempTranscoded;

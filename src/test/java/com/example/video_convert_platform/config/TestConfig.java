@@ -53,6 +53,13 @@ public class TestConfig {
             }
 
             @Override
+            public com.example.video_convert_platform.util.FFmpegUtil.VideoStreamInfo probeVideoStreamInfo(Path input)
+                    throws IOException, InterruptedException {
+                Thread.sleep(10);
+                return new com.example.video_convert_platform.util.FFmpegUtil.VideoStreamInfo(1920, 1080, 0);
+            }
+
+            @Override
             public void transcode(Path input, Path output, int width, int height)
                     throws IOException, InterruptedException {
                 // 模拟转码
