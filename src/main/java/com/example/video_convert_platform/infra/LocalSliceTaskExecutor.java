@@ -6,7 +6,7 @@ import com.example.video_convert_platform.domain.ProjectConfig;
 import com.example.video_convert_platform.domain.VideoUploadTask;
 import com.example.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.example.video_convert_platform.domain.service.VideoTaskDomainService;
-import com.example.video_convert_platform.service.ITaskLogService;
+import com.example.video_convert_platform.service.TaskLogService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +32,7 @@ public class LocalSliceTaskExecutor {
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoTaskDomainService domainService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final ITaskLogService taskLogService;
+    private final TaskLogService taskLogService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoUploadTaskRepository taskRepository;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
@@ -42,7 +42,7 @@ public class LocalSliceTaskExecutor {
     public LocalSliceTaskExecutor(BlockingQueue<SliceTask> queue,
                                   ThreadPoolExecutor sliceExecutor,
                                   VideoTaskDomainService domainService,
-                                  ITaskLogService taskLogService,
+                                  TaskLogService taskLogService,
                                   VideoUploadTaskRepository taskRepository,
                                   Tracer tracer) {
         this.queue = queue;

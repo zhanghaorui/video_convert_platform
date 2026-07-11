@@ -3,7 +3,6 @@ package com.example.video_convert_platform.domain.service;
 import com.example.video_convert_platform.common.BusinessException;
 import com.example.video_convert_platform.common.ErrorCode;
 import com.example.video_convert_platform.common.VideoConstants;
-import com.example.video_convert_platform.config.NfsProperties;
 import com.example.video_convert_platform.domain.ProjectConfig;
 import com.example.video_convert_platform.domain.VideoUploadTask;
 import com.example.video_convert_platform.domain.enums.VideoQuality;
@@ -11,6 +10,7 @@ import com.example.video_convert_platform.domain.event.DomainEventPublisher;
 import com.example.video_convert_platform.domain.event.SliceGeneratedEvent;
 import com.example.video_convert_platform.domain.event.TaskCallbackEvent;
 import com.example.video_convert_platform.domain.event.TaskLogEvent;
+import com.example.video_convert_platform.domain.infrastructure.UrlBuilder;
 import com.example.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.example.video_convert_platform.util.ArchivePathUtil;
 import com.example.video_convert_platform.util.DigestUtil;
@@ -20,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,24 +42,24 @@ public class VideoTaskDomainService {
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoUploadTaskRepository uploadTaskRepository;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final FFmpegUtil ffmpegUtil;
+    private final VideoProcessor videoProcessor;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final DomainEventPublisher eventPublisher;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final NfsProperties nfsProperties;
+    private final UrlBuilder urlBuilder;
 
     public VideoTaskDomainService(VideoUploadTaskRepository uploadTaskRepository,
-                                  FFmpegUtil ffmpegUtil,
+                                  VideoProcessor videoProcessor,
                                   Tracer tracer,
                                   DomainEventPublisher eventPublisher,
-                                  NfsProperties nfsProperties) {
+                                  UrlBuilder urlBuilder) {
         this.uploadTaskRepository = uploadTaskRepository;
-        this.ffmpegUtil = ffmpegUtil;
+        this.videoProcessor = videoProcessor;
         this.tracer = tracer;
         this.eventPublisher = eventPublisher;
-        this.nfsProperties = nfsProperties;
+        this.urlBuilder = urlBuilder;
     }
 
     /**
@@ -94,13 +93,13 @@ public class VideoTaskDomainService {
             Path processedVideo = preprocessVideo(task, inputVideo, tempFiles);
 
             // 3. 获取视频显示分辨率信息
-            VideoStreamInfo streamInfo = ffmpegUtil.probeVideoStreamInfo(processedVideo);
+            VideoStreamInfo streamInfo = videoProcessor.probeVideoStreamInfo(processedVideo);
             int[] resolution = getVideoResolution(task, streamInfo);
 
             // 新增：获取原始（预处理后）视频码率，供自适应码率策略使用
             int originalBitrateKbps = 0;
             try {
-                Integer br = ffmpegUtil.getVideoBitrateKbps(processedVideo);
+                Integer br = videoProcessor.getVideoBitrateKbps(processedVideo);
                 if (br != null && br > 0) {
                     originalBitrateKbps = br;
                     eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
@@ -171,13 +170,13 @@ public class VideoTaskDomainService {
                 String.format("大文件(%dMB)使用快速验证（前10秒）", fileSizeMB)));
             log.info("大文件使用快速验证: size={}MB, path={}", fileSizeMB, input);
             // 快速验证：只检查前10秒，既能发现文件损坏，又不会超时
-            ffmpegUtil.validateQuick(input, 10);
+            videoProcessor.validateQuick(input, 10);
             eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
                 "视频文件快速验证通过"));
         } else {
             eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
                 "开始验证视频文件完整性"));
-            ffmpegUtil.validate(input);
+            videoProcessor.validate(input);
             eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
                 "视频文件验证通过"));
         }
@@ -226,7 +225,7 @@ public class VideoTaskDomainService {
             "检测到AVI格式，开始转换为MP4"));
         Path mp4Path = input.resolveSibling("converted_" + System.currentTimeMillis() + ".mp4");
 
-        ffmpegUtil.aviToMp4(input, mp4Path);
+        videoProcessor.aviToMp4(input, mp4Path);
         tempFiles.add(mp4Path);
 
         eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
@@ -240,7 +239,7 @@ public class VideoTaskDomainService {
     private Path downscaleIfNeeded(VideoUploadTask task, Path input, List<Path> tempFiles)
             throws IOException, InterruptedException {
 
-        int[] resolution = ffmpegUtil.getResolution(input);
+        int[] resolution = videoProcessor.getResolution(input);
         int width = resolution[0];
         int height = resolution[1];
         int[] targetResolution = FFmpegUtil.computeBoundedDisplayDimensions(width, height, 1920, 1080);
@@ -255,7 +254,7 @@ public class VideoTaskDomainService {
             String.format("检测到高分辨率视频(%dx%d)，开始降级到%dx%d", width, height, targetWidth, targetHeight)));
         Path scaledPath = input.resolveSibling("scaled_" + System.currentTimeMillis() + ".mp4");
 
-        ffmpegUtil.transcode(input, scaledPath, targetWidth, targetHeight);
+        videoProcessor.transcode(input, scaledPath, targetWidth, targetHeight);
         tempFiles.add(scaledPath);
 
         eventPublisher.publish(new TaskLogEvent(task.getId(), TaskLogEvent.Level.INFO,
@@ -352,12 +351,12 @@ public class VideoTaskDomainService {
                                 targetKbps, originalBitrateKbps, originalWidth, originalHeight,
                                 targetWidth, targetHeight, hasRotationMetadata)));
                     }
-                    ffmpegUtil.transcode(input, tempTranscoded, targetWidth, targetHeight, targetKbps);
+                    videoProcessor.transcode(input, tempTranscoded, targetWidth, targetHeight, targetKbps);
                     sourceForSlice = tempTranscoded;
                 }
 
                 // 切片生成M3U8（-c:v copy -an），码率与sourceForSlice保持一致
-                Path m3u8Path = ffmpegUtil.sliceToM3u8(sourceForSlice, sliceDir);
+                Path m3u8Path = videoProcessor.sliceToM3u8(sourceForSlice, sliceDir);
 
                 // 发布切片生成事件
                 saveSliceArchive(task, qualityName, m3u8Path);
@@ -390,12 +389,12 @@ public class VideoTaskDomainService {
         
         // 根据配置决定存储相对路径还是完整URL
         String playUrl;
-        if (nfsProperties.getUrlStorageStrategy() == NfsProperties.UrlStorageStrategy.ABSOLUTE) {
+        if (urlBuilder.getUrlStorageStrategy() == UrlBuilder.UrlStorageStrategy.ABSOLUTE) {
             // 存储完整URL
             String relativePath = ArchivePathUtil.buildPlayUrl(task.getProjectNo(),
                     task.getPatientCode(), task.getTpStage(), task.getVersionNo(),
                     task.getUuid(), quality);
-            playUrl = buildAbsoluteUrl(relativePath);
+            playUrl = urlBuilder.buildAbsoluteUrl(relativePath);
         } else {
             // 存储相对路径（默认）
             playUrl = ArchivePathUtil.buildPlayUrl(task.getProjectNo(),
@@ -405,20 +404,6 @@ public class VideoTaskDomainService {
 
         eventPublisher.publish(new SliceGeneratedEvent(task.getId(), quality,
                 VideoConstants.M3U8_NAME, m3u8Path.toString(), playUrl, fileSize, md5));
-    }
-    
-    /**
-     * 构建完整URL
-     */
-    private String buildAbsoluteUrl(String relativePath) {
-        String baseUrl = nfsProperties.getBaseUrl();
-        if (!StringUtils.hasText(baseUrl)) {
-            return relativePath;
-        }
-        
-        String cleanBaseUrl = baseUrl.replaceAll("/$", "");
-        String cleanRelativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
-        return cleanBaseUrl + cleanRelativePath;
     }
 
     /**

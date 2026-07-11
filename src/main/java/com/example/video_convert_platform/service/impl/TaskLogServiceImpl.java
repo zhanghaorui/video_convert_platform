@@ -4,7 +4,7 @@ import com.example.video_convert_platform.domain.VideoTaskError;
 import com.example.video_convert_platform.domain.VideoTaskInfo;
 import com.example.video_convert_platform.mapper.VideoTaskErrorMapper;
 import com.example.video_convert_platform.mapper.VideoTaskInfoMapper;
-import com.example.video_convert_platform.service.ITaskLogService;
+import com.example.video_convert_platform.service.TaskLogService;
 import com.example.video_convert_platform.util.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
  * Implementation of task logging service with format support.
  */
 @Service
-public class TaskLogServiceImpl implements ITaskLogService {
+public class TaskLogServiceImpl implements TaskLogService {
 
     @Autowired
     private VideoTaskInfoMapper infoMapper;

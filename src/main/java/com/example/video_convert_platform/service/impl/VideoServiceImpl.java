@@ -11,9 +11,9 @@ import com.example.video_convert_platform.domain.repository.ProjectConfigReposit
 import com.example.video_convert_platform.domain.repository.VideoUploadTaskRepository;
 import com.example.video_convert_platform.domain.repository.VideoArchiveFileRepository;
 import com.example.video_convert_platform.service.dto.MqVideoMessage;
-import com.example.video_convert_platform.service.IVideoService;
-import com.example.video_convert_platform.service.ITaskLogService;
-import com.example.video_convert_platform.service.IUploadTaskTxService;
+import com.example.video_convert_platform.service.VideoService;
+import com.example.video_convert_platform.service.TaskLogService;
+import com.example.video_convert_platform.service.UploadTaskTxService;
 import com.example.video_convert_platform.infra.NfsService;
 import com.example.video_convert_platform.infra.LocalSliceTaskExecutor;
 import org.springframework.cloud.sleuth.Span;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-public class VideoServiceImpl implements IVideoService {
+public class VideoServiceImpl implements VideoService {
 
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ProjectConfigRepository projectConfigRepository;
@@ -48,22 +48,22 @@ public class VideoServiceImpl implements IVideoService {
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final NfsService nfsService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final ITaskLogService taskLogService;
+    private final TaskLogService taskLogService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final LocalSliceTaskExecutor sliceTaskExecutor;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final Tracer tracer;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final IUploadTaskTxService uploadTaskTxService;
+    private final UploadTaskTxService uploadTaskTxService;
 
     public VideoServiceImpl(ProjectConfigRepository projectConfigRepository,
                             VideoUploadTaskRepository uploadTaskRepository,
                             VideoArchiveFileRepository archiveFileRepository,
                             NfsService nfsService,
-                            ITaskLogService taskLogService,
+                            TaskLogService taskLogService,
                             LocalSliceTaskExecutor sliceTaskExecutor,
                             Tracer tracer,
-                            IUploadTaskTxService uploadTaskTxService) {
+                            UploadTaskTxService uploadTaskTxService) {
         this.projectConfigRepository = projectConfigRepository;
         this.uploadTaskRepository = uploadTaskRepository;
         this.archiveFileRepository = archiveFileRepository;
@@ -77,6 +77,9 @@ public class VideoServiceImpl implements IVideoService {
     @Override
     public VideoUploadTask upload(MultipartFile file, String projectNo,
                                   String patientCode, String tpStage) {
+        // 0. 校验文件安全性
+        validateUploadedFile(file);
+
         Span span = tracer.nextSpan().name("ingest_receive").start();
         span.tag("project_no", projectNo);
         span.tag("source", VideoConstants.SOURCE_CONTROLLER);
@@ -123,6 +126,9 @@ public class VideoServiceImpl implements IVideoService {
     public void uploadChunk(MultipartFile file, Integer chunk, Integer chunks,
                             String filename, String projectNo, String patientCode,
                             String tpStage, String uuid, String visit) { // add visit
+        // 0. 校验文件安全性
+        validateUploadedFile(file);
+
         // 1. 验证项目配置
         ProjectConfig config = validateProject(projectNo);
 
@@ -359,5 +365,78 @@ public class VideoServiceImpl implements IVideoService {
             return VideoConstants.QUALITY_NORMAL; // "normal"
         }
         return quality;
+    }
+
+    /**
+     * 校验上传文件的安全性
+     * 包括文件扩展名白名单校验和文件大小限制
+     *
+     * @param file 上传的文件
+     * @throws BusinessException 如果文件不符合安全要求
+     */
+    private void validateUploadedFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "上传文件不能为空");
+        }
+
+        // 校验文件大小
+        if (file.getSize() > VideoConstants.MAX_FILE_SIZE) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                "文件大小超过限制，最大允许" + (VideoConstants.MAX_FILE_SIZE / 1024 / 1024) + "MB");
+        }
+
+        // 校验文件扩展名
+        String filename = file.getOriginalFilename();
+        if (filename == null || filename.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "文件名不能为空");
+        }
+
+        String extension = getFileExtension(filename);
+        if (extension == null || !isAllowedExtension(extension)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                "不支持的文件类型: " + extension + "，仅支持视频文件");
+        }
+
+        // 校验Content-Type（可选，作为额外检查）
+        String contentType = file.getContentType();
+        if (contentType != null && !isAllowedContentType(contentType)) {
+            log.warn("文件Content-Type不在白名单: {}, filename: {}", contentType, filename);
+            // 不直接拒绝，仅记录警告日志，因为有些浏览器可能报告错误的Content-Type
+        }
+    }
+
+    /**
+     * 获取文件扩展名（小写）
+     */
+    private String getFileExtension(String filename) {
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex == -1 || lastDotIndex == filename.length() - 1) {
+            return null;
+        }
+        return filename.substring(lastDotIndex + 1).toLowerCase();
+    }
+
+    /**
+     * 检查扩展名是否在白名单中
+     */
+    private boolean isAllowedExtension(String extension) {
+        for (String allowed : VideoConstants.ALLOWED_VIDEO_EXTENSIONS) {
+            if (allowed.equalsIgnoreCase(extension)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 检查Content-Type是否在白名单中
+     */
+    private boolean isAllowedContentType(String contentType) {
+        for (String allowed : VideoConstants.ALLOWED_CONTENT_TYPES) {
+            if (contentType.startsWith(allowed)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

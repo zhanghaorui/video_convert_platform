@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Interface for project-related operations.
  */
-public interface IProjectService {
+public interface ProjectService {
     /**
      * Create a new project configuration.
      * @param config project configuration

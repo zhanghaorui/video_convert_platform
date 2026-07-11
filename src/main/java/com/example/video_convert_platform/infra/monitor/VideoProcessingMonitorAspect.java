@@ -25,7 +25,7 @@ public class VideoProcessingMonitorAspect {
     /**
      * 监控视频上传操作
      */
-    @Around("execution(* com.example.video_convert_platform.service.IVideoService.upload(..))")
+    @Around("execution(* com.example.video_convert_platform.service.VideoService.upload(..))")
     public Object monitorUpload(ProceedingJoinPoint joinPoint) throws Throwable {
         Instant start = Instant.now();
         Object[] args = joinPoint.getArgs();
@@ -50,7 +50,7 @@ public class VideoProcessingMonitorAspect {
     /**
      * 监控分片上传操作
      */
-    @Around("execution(* com.example.video_convert_platform.service.IVideoService.uploadChunk(..))")
+    @Around("execution(* com.example.video_convert_platform.service.VideoService.uploadChunk(..))")
     public Object monitorChunkUpload(ProceedingJoinPoint joinPoint) throws Throwable {
         Object[] args = joinPoint.getArgs();
         String projectNo = args.length > 4 ? (String) args[4] : "unknown";

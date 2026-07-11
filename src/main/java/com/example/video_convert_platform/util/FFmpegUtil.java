@@ -3,6 +3,7 @@ package com.example.video_convert_platform.util;
 import com.example.video_convert_platform.common.BusinessException;
 import com.example.video_convert_platform.common.ErrorCode;
 import com.example.video_convert_platform.config.VideoProcessingProperties;
+import com.example.video_convert_platform.domain.service.VideoProcessor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -21,11 +22,12 @@ import java.util.concurrent.TimeUnit;
 /**
  * Helper utilities for invoking FFmpeg command line with timeout support.
  * 支持分阶段超时策略，根据视频时长动态计算超时时间。
+ * 实现 VideoProcessor 接口，提供视频处理核心能力。
  */
 @Slf4j
 @Component
 @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-public class FFmpegUtil {
+public class FFmpegUtil implements VideoProcessor {
 
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final VideoProcessingProperties properties;

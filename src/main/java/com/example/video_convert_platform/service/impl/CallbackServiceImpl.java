@@ -4,9 +4,9 @@ import com.example.video_convert_platform.domain.ProjectConfig;
 import com.example.video_convert_platform.domain.VideoUploadTaskView;
 import com.example.video_convert_platform.domain.infrastructure.CallbackInfrastructure;
 import com.example.video_convert_platform.config.BusinessProperties;
-import com.example.video_convert_platform.service.ICallbackService;
-import com.example.video_convert_platform.service.IProjectService;
-import com.example.video_convert_platform.service.ITaskLogService;
+import com.example.video_convert_platform.service.CallbackService;
+import com.example.video_convert_platform.service.ProjectService;
+import com.example.video_convert_platform.service.TaskLogService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -14,19 +14,19 @@ import org.springframework.stereotype.Service;
  * 应用服务层，负责编排回调业务流程
  */
 @Service
-public class CallbackServiceImpl implements ICallbackService {
+public class CallbackServiceImpl implements CallbackService {
 
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final ITaskLogService taskLogService;
+    private final TaskLogService taskLogService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final IProjectService projectService;
+    private final ProjectService projectService;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final CallbackInfrastructure callbackInfrastructure;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final BusinessProperties businessProperties;
 
-    public CallbackServiceImpl(ITaskLogService taskLogService,
-                               IProjectService projectService,
+    public CallbackServiceImpl(TaskLogService taskLogService,
+                               ProjectService projectService,
                                CallbackInfrastructure callbackInfrastructure,
                                BusinessProperties businessProperties) {
         this.taskLogService = taskLogService;

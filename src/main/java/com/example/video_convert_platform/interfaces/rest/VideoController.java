@@ -7,9 +7,12 @@ import com.example.video_convert_platform.interfaces.dto.request.*;
 import com.example.video_convert_platform.interfaces.dto.response.*;
 import com.example.video_convert_platform.domain.VideoUploadTask;
 import com.example.video_convert_platform.domain.VideoArchiveFile;
-import com.example.video_convert_platform.service.IVideoService;
+import com.example.video_convert_platform.service.VideoService;
 import com.example.video_convert_platform.config.NfsProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -31,10 +34,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/videos")
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "视频处理", description = "视频上传、转码、切片和播放URL查询接口")
 public class VideoController {
 
     @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Injected service is managed externally")
-    private final IVideoService videoService;
+    private final VideoService videoService;
     @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Configuration properties are immutable")
     private final NfsProperties nfsProperties;
 
@@ -48,11 +52,12 @@ public class VideoController {
      * @return 上传任务信息
      */
     @PostMapping("/upload")
+    @Operation(summary = "上传完整视频", description = "上传完整视频文件并进行归档和转码处理")
     public ApiResponse<VideoUploadResponse> uploadVideo(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
-            @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
-            @RequestParam @NotBlank(message = "访视点不能为空") String tpStage) {
+            @Parameter(description = "视频文件") @RequestParam("file") MultipartFile file,
+            @Parameter(description = "项目编号") @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
+            @Parameter(description = "受试者编码") @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
+            @Parameter(description = "访视点") @RequestParam @NotBlank(message = "访视点不能为空") String tpStage) {
 
         log.info("开始上传视频文件: projectNo={}, patientCode={}, tpStage={}, fileName={}",
                 projectNo, patientCode, tpStage, file.getOriginalFilename());
@@ -78,16 +83,17 @@ public class VideoController {
      * @return 上传结果
      */
     @PostMapping("/upload/chunk")
+    @Operation(summary = "分片上传视频", description = "分片上传视频文件，最后一片时自动合并并处理")
     public ApiResponse<String> uploadVideoChunk(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
-            @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
-            @RequestParam @NotBlank(message = "访视点不能为空") String tpStage,
-            @RequestParam @NotBlank(message = "文件名不能为空") String filename,
-            @RequestParam @NotBlank(message = "UUID不能为空") String uuid,
-            @RequestParam(required = false) Integer chunk,
-            @RequestParam(required = false) Integer chunks,
-            @RequestParam(required = false) String visit) { // 新增 visit 可选参数
+            @Parameter(description = "分片文件") @RequestParam("file") MultipartFile file,
+            @Parameter(description = "项目编号") @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
+            @Parameter(description = "受试者编码") @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
+            @Parameter(description = "访视点") @RequestParam @NotBlank(message = "访视点不能为空") String tpStage,
+            @Parameter(description = "原始文件名") @RequestParam @NotBlank(message = "文件名不能为空") String filename,
+            @Parameter(description = "上传会话UUID") @RequestParam @NotBlank(message = "UUID不能为空") String uuid,
+            @Parameter(description = "当前分片索引") @RequestParam(required = false) Integer chunk,
+            @Parameter(description = "总分片数") @RequestParam(required = false) Integer chunks,
+            @Parameter(description = "访视信息") @RequestParam(required = false) String visit) { // 新增 visit 可选参数
 
         log.info("开始上传视频分片: projectNo={}, patientCode={}, tpStage={}, filename={}, chunk={}/{}, visit={}",
                 projectNo, patientCode, tpStage, filename, chunk, chunks, visit);
@@ -109,7 +115,9 @@ public class VideoController {
      * @return 任务信息
      */
     @GetMapping("/tasks/{taskId}")
-    public ApiResponse<VideoUploadResponse> getTaskStatus(@PathVariable Long taskId) {
+    @Operation(summary = "查询任务状态", description = "根据任务ID查询上传任务的处理状态")
+    public ApiResponse<VideoUploadResponse> getTaskStatus(
+            @Parameter(description = "任务ID") @PathVariable Long taskId) {
         log.info("查询上传任务状态: taskId={}", taskId);
 
         VideoUploadTask task = videoService.getTaskById(taskId);
@@ -147,7 +155,9 @@ public class VideoController {
      * @return 播放URL信息
      */
     @GetMapping("/tasks/{taskId}/play-urls")
-    public ApiResponse<List<PlayUrlInfo>> getPlayUrlsByTaskId(@PathVariable Long taskId) {
+    @Operation(summary = "查询播放URL（按任务ID）", description = "根据任务ID查询该任务生成的HLS播放地址")
+    public ApiResponse<List<PlayUrlInfo>> getPlayUrlsByTaskId(
+            @Parameter(description = "任务ID") @PathVariable Long taskId) {
         log.info("查询任务播放URL: taskId={}", taskId);
 
         List<VideoArchiveFile> archiveFiles = videoService.getPlayUrlsByTaskId(taskId);
@@ -170,13 +180,14 @@ public class VideoController {
      * @return 播放URL响应
      */
     @GetMapping("/play-urls")
+    @Operation(summary = "查询播放URL（按业务参数）", description = "根据项目号、受试者编码等业务参数查询HLS播放地址")
     public ApiResponse<PlayUrlResponse> getPlayUrlsByParams(
-            @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
-            @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
-            @RequestParam(required = false) String tpStage,
-            @RequestParam(required = false) String visit,
-            @RequestParam(required = false) Integer versionNo,
-            @RequestParam(required = false) String quality) {
+            @Parameter(description = "项目编号") @RequestParam @NotBlank(message = "项目编号不能为空") String projectNo,
+            @Parameter(description = "受试者编码") @RequestParam @NotBlank(message = "受试者编码不能为空") String patientCode,
+            @Parameter(description = "访视点（与visit二选一）") @RequestParam(required = false) String tpStage,
+            @Parameter(description = "访视信息（与tpStage二选一）") @RequestParam(required = false) String visit,
+            @Parameter(description = "版本号") @RequestParam(required = false) Integer versionNo,
+            @Parameter(description = "质量级别") @RequestParam(required = false) String quality) {
 
         log.info("查询播放URL: projectNo={}, patientCode={}, tpStage={}, visit={}, versionNo={}, quality={}",
                 projectNo, patientCode, tpStage, visit, versionNo, quality);

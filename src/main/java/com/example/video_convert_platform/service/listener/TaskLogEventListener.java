@@ -1,19 +1,19 @@
 package com.example.video_convert_platform.service.listener;
 
 import com.example.video_convert_platform.domain.event.TaskLogEvent;
-import com.example.video_convert_platform.service.ITaskLogService;
+import com.example.video_convert_platform.service.TaskLogService;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Handles {@link TaskLogEvent} by delegating to {@link ITaskLogService}.
+ * Handles {@link TaskLogEvent} by delegating to {@link TaskLogService}.
  */
 @Component
 public class TaskLogEventListener {
 
-    private final ITaskLogService taskLogService;
+    private final TaskLogService taskLogService;
 
-    public TaskLogEventListener(ITaskLogService taskLogService) {
+    public TaskLogEventListener(TaskLogService taskLogService) {
         this.taskLogService = taskLogService;
     }
 

@@ -3,7 +3,7 @@ package com.example.video_convert_platform.service.impl;
 import com.example.video_convert_platform.common.VideoConstants;
 import com.example.video_convert_platform.domain.VideoArchiveFile;
 import com.example.video_convert_platform.mapper.VideoArchiveFileMapper;
-import com.example.video_convert_platform.service.IArchiveService;
+import com.example.video_convert_platform.service.ArchiveService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
  * Implementation of archive service.
  */
 @Service
-public class ArchiveServiceImpl implements IArchiveService {
+public class ArchiveServiceImpl implements ArchiveService {
 
     @Autowired
     private VideoArchiveFileMapper archiveFileMapper;

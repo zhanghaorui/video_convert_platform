@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Service interface for video-related operations.
  */
-public interface IVideoService {
+public interface VideoService {
 
     /**
      * Upload full video and archive original file.

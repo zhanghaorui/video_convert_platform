@@ -5,7 +5,7 @@ import com.example.video_convert_platform.domain.VideoUploadTaskView;
 /**
  * Service responsible for notifying external systems when processing completes.
  */
-public interface ICallbackService {
+public interface CallbackService {
 
     /**
      * Notify business system that slices are ready for a task.

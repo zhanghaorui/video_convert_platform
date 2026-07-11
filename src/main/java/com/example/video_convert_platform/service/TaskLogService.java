@@ -3,7 +3,7 @@ package com.example.video_convert_platform.service;
 /**
  * Service for recording task logs and errors.
  */
-public interface ITaskLogService {
+public interface TaskLogService {
 
     /**
      * Record normal info log for a task.

@@ -2,7 +2,7 @@ package com.example.video_convert_platform.service.impl;
 
 import com.example.video_convert_platform.domain.ProjectConfig;
 import com.example.video_convert_platform.domain.repository.ProjectConfigRepository;
-import com.example.video_convert_platform.service.IProjectService;
+import com.example.video_convert_platform.service.ProjectService;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-public class ProjectServiceImpl implements IProjectService {
+public class ProjectServiceImpl implements ProjectService {
 
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ProjectConfigRepository projectConfigRepository;

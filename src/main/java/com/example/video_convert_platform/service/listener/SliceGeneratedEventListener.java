@@ -1,7 +1,7 @@
 package com.example.video_convert_platform.service.listener;
 
 import com.example.video_convert_platform.domain.event.SliceGeneratedEvent;
-import com.example.video_convert_platform.service.IArchiveService;
+import com.example.video_convert_platform.service.ArchiveService;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class SliceGeneratedEventListener {
 
-    private final IArchiveService archiveService;
+    private final ArchiveService archiveService;
 
-    public SliceGeneratedEventListener(IArchiveService archiveService) {
+    public SliceGeneratedEventListener(ArchiveService archiveService) {
         this.archiveService = archiveService;
     }
 

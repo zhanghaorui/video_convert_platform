@@ -7,7 +7,7 @@ import java.nio.file.Path;
 /**
  * Transactional service for persisting upload tasks and related archives.
  */
-public interface IUploadTaskTxService {
+public interface UploadTaskTxService {
 
     /**
      * Persist upload task and archive record within a transaction.

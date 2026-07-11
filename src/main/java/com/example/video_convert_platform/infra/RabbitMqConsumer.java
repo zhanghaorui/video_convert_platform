@@ -1,7 +1,7 @@
 package com.example.video_convert_platform.infra;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.video_convert_platform.service.IVideoService;
+import com.example.video_convert_platform.service.VideoService;
 import com.example.video_convert_platform.service.dto.MqVideoMessage;
 import com.rabbitmq.client.Channel;
 import java.io.IOException;
@@ -23,9 +23,9 @@ public class RabbitMqConsumer {
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
     private final ObjectMapper objectMapper;
     @SuppressWarnings("EI_EXPOSE_REP2") // 依赖注入场景，预期行为
-    private final IVideoService videoService;
+    private final VideoService videoService;
 
-    public RabbitMqConsumer(ObjectMapper objectMapper, IVideoService videoService) {
+    public RabbitMqConsumer(ObjectMapper objectMapper, VideoService videoService) {
         this.objectMapper = objectMapper;
         this.videoService = videoService;
     }

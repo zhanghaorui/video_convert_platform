@@ -56,6 +56,17 @@ public class BusinessProperties {
          */
         private Long timeout = 30000L;
 
+        /**
+         * URL白名单（允许的回调URL域名列表）
+         * 支持通配符格式，如 *.example.com
+         */
+        private java.util.List<String> allowedDomains;
+
+        /**
+         * 是否启用URL白名单校验
+         */
+        private Boolean enableUrlWhitelist = false;
+
         // 拷贝构造器
         public Callback() {}
 
@@ -64,6 +75,9 @@ public class BusinessProperties {
                 this.enabled = other.enabled;
                 this.retryTimes = other.retryTimes;
                 this.timeout = other.timeout;
+                this.allowedDomains = other.allowedDomains != null
+                    ? new java.util.ArrayList<>(other.allowedDomains) : null;
+                this.enableUrlWhitelist = other.enableUrlWhitelist;
             }
         }
     }

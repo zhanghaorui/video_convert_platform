@@ -5,7 +5,7 @@ import com.example.video_convert_platform.domain.VideoArchiveFile;
 /**
  * Interface for archive operations.
  */
-public interface IArchiveService {
+public interface ArchiveService {
 
     /**
      * Persist original uploaded file information.

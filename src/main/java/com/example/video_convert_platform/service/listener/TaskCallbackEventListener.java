@@ -1,7 +1,7 @@
 package com.example.video_convert_platform.service.listener;
 
 import com.example.video_convert_platform.domain.event.TaskCallbackEvent;
-import com.example.video_convert_platform.service.ICallbackService;
+import com.example.video_convert_platform.service.CallbackService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class TaskCallbackEventListener {
 
-    private final ICallbackService callbackService;
+    private final CallbackService callbackService;
 
-    public TaskCallbackEventListener(ICallbackService callbackService) {
+    public TaskCallbackEventListener(CallbackService callbackService) {
         this.callbackService = callbackService;
     }
 
